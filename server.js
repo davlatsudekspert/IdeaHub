@@ -144,7 +144,7 @@ server.on('upgrade', (req, socket) => {
 init()
   .then(() => {
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n  IdeaHub  →  http://localhost:${PORT}\n`);
+      console.log(`\n  thinkoo  →  http://localhost:${PORT}\n`);
     });
   })
   .catch(err => {
