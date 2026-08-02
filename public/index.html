@@ -170,7 +170,13 @@
       <div id="sec-msgs" class="section">
         <div class="msg-wrap">
           <div class="msg-list">
-            <div class="msg-list-hd">Xabarlar
+            <div class="msg-list-hd">
+              <div style="display:flex;align-items:center;gap:8px">
+                <button class="msg-back-btn" id="msg-back-btn" onclick="goSec('home');loadFeed(true)" title="Orqaga">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <span>Xabarlar</span>
+              </div>
               <div class="new-msg-btn" onclick="toast('Qidiruv orqali foydalanuvchi profiliga kirib xabar yuboring')" title="Yangi xabar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </div>

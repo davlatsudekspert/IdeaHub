@@ -649,6 +649,16 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .new-msg-btn:hover { transform: scale(1.1); background: var(--gold-lt); }
 .new-msg-btn svg { width: 12px !important; height: 12px !important; }
 
+/* Full-screen messages view */
+.msg-back-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--tx2);display:none;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;}
+.msg-back-btn:hover{background:var(--bg3);color:var(--gold);border-color:var(--gold);}
+@media(min-width:901px){
+  #layout.msgs-full .left-sb{display:none;}
+  #layout.msgs-full #rsb{display:none;}
+  #layout.msgs-full .msg-wrap{height:calc(100vh - var(--tb-h) - 30px);}
+  #layout.msgs-full .msg-back-btn{display:inline-flex;}
+}
+
 /* ═══ CALL ANIMATIONS ═══ */
 @keyframes pulse-call {
   0%   { transform:scale(1);   opacity:.6; }

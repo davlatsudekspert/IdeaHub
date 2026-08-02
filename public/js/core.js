@@ -47,6 +47,8 @@ function goSec(id) {
   _curSec = id;
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'sec-'+id));
   document.querySelectorAll('.lsb-btn[data-sec]').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
+  // Full-screen messages view (sidebar hidden)
+  document.getElementById('layout')?.classList.toggle('msgs-full', id === 'msgs');
   window.scrollTo(0,0);
   // Update bottom nav
   const bnMap = { home:'bn-home', popular:'bn-popular', notifs:'bn-notifs', msgs:'bn-msgs', user:'bn-profile' };
