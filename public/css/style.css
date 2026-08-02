@@ -710,6 +710,7 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .tb-av-wrap{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 8px 4px 4px;border-radius:var(--r);border:1px solid transparent;transition:all .15s;margin-left:2px;}
 .tb-av-wrap:hover{background:var(--bg2);border-color:var(--border2);}
 .tb-av{width:28px;height:28px;font-size:10px;flex-shrink:0;}
+.tb-av-info{display:flex;flex-direction:column;line-height:1.2;}
 .tb-av-name{font-size:13px;font-weight:600;font-family:'Syne',sans-serif;color:var(--tx1);}
 .tb-av-karma{font-size:11px;color:var(--gold);}
 
