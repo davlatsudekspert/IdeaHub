@@ -150,7 +150,7 @@ function buildRsb(){
   el.innerHTML=`
     <div class="rsb-card">
       <div class="rsb-body">
-        <div class="rsb-title">🔥 thinkoo</div>
+        <div class="rsb-title">🔥 mindhub</div>
         <div class="rsb-desc">O'zbekistonning eng zamonaviy Reddit-uslubdagi platformasi</div>
         <button class="btn btn-gold" style="width:100%" onclick="requireAuth(()=>openSubmit())">✍️ Post yozish</button>
       </div>

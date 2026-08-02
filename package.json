@@ -1,7 +1,7 @@
 {
-  "name": "ideahub",
+  "name": "mindhub",
   "version": "1.0.0",
-  "description": "IdeaHub - O'zbek Reddit",
+  "description": "mindhub - O'zbek Reddit",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
