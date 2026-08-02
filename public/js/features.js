@@ -449,7 +449,7 @@ function initNotifWS() {
     const nd = d.data || d;
     toast('🔔 ' + (nd.msg||'Yangi bildirishnoma'));
     // Browser push notification
-    showBrowserNotif('mindhub', nd.msg||'', nd.fa);
+    showBrowserNotif('MindHub', nd.msg||'', nd.fa);
     if (curSec()==='notifs') loadNotifs();
   });
 }
@@ -683,7 +683,7 @@ function initMsgWS() {
     const inThisChat=curSec()==='msgs'&&_chatWith?.id===d.data.msg.from_id;
     if(!inThisChat){
       toast('💬 '+(d.data.from.name||d.data.from.username)+': '+d.data.msg.body.slice(0,36));
-      showBrowserNotif('mindhub — Yangi xabar', d.data.from.name+': '+d.data.msg.body.slice(0,60), d.data.from.avatar);
+      showBrowserNotif('MindHub — Yangi xabar', d.data.from.name+': '+d.data.msg.body.slice(0,60), d.data.from.avatar);
     }
     if(inThisChat) addBubble({...d.data.msg,ago:'Hozir'},false);
     loadConvos();

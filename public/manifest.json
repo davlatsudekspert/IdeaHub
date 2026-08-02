@@ -1,6 +1,6 @@
 {
-  "name": "mindhub",
-  "short_name": "mindhub",
+  "name": "MindHub",
+  "short_name": "MindHub",
   "description": "G'oyalar va loyihalar uchun platforma",
   "start_url": "/",
   "scope": "/",
