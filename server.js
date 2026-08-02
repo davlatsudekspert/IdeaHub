@@ -6,7 +6,7 @@ const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
 
-require('./src/db');
+const { init }        = require('./src/db');
 const { route }       = require('./src/routes');
 const ws              = require('./src/ws');
 const { verifyToken } = require('./src/helpers');
@@ -141,6 +141,13 @@ server.on('upgrade', (req, socket) => {
   }
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  IdeaHub  →  http://localhost:${PORT}\n`);
-});
+init()
+  .then(() => {
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n  IdeaHub  →  http://localhost:${PORT}\n`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ PostgreSQL ulanishda xatolik:', err.message);
+    process.exit(1);
+  });
