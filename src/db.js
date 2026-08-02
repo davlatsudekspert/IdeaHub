@@ -2,7 +2,7 @@
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/ideahub';
+const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/mindhub';
 
 // Railway Postgres uses a self-signed cert; disable verification (like most Railway apps do)
 const ssl = process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false };
@@ -329,15 +329,17 @@ const Q = {
 };
 
 /* ── Seed ── */
-const SECRET = 'ideahub_secret_2025';
+const SECRET = process.env.SECRET || 'mindhub_secret_2026';
 function hmac(s) { return crypto.createHmac('sha256', SECRET).update(s).digest('hex'); }
 
 async function seed() {
   const SYS = 'u_system';
   const sys = await Q.uById(SYS);
   if (!sys) {
-    await Q.uInsert(SYS, 'ideahub', 'IdeaHub', 'system@ideahub.uz', hmac('_sys_'), '#C8922A');
+    await Q.uInsert(SYS, 'mindhub', 'MindHub', 'system@mindhub.uz', hmac('_sys_'), '#C8922A');
     await db.run('UPDATE users SET is_admin=1 WHERE id=$1', [SYS]);
+  } else if (sys.name !== 'MindHub') {
+    await db.run("UPDATE users SET username='mindhub', name='MindHub', email='system@mindhub.uz' WHERE id=$1", [SYS]);
   }
   const COMS = [
     { id:'c_tech',  slug:'texnologiya', name:'Texnologiya', desc:"IT, dasturlash, AI haqida.",        color:'#4D8FFF' },
