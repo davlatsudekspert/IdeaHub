@@ -787,7 +787,12 @@ function sendVoiceMsg(){
 let _pc = null, _localStream = null, _callType = null, _callWith = null;
 let _callTimerInterval = null, _callSecs = 0, _pendingOffer = null;
 
-const STUN = { iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}] };
+const STUN = { iceServers:[
+  { urls:'stun:stun.l.google.com:19302' },
+  { urls:'stun:stun1.l.google.com:19302' },
+  { urls:'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject' },
+  { urls:'turns:openrelay.metered.ca:443', username:'openrelayproject', credential:'openrelayproject' }
+] };
 
 function startVideoCall(){ if(!_chatWith){toast('Avval suhbatdosh tanlang');return;} initiateCall('video',_chatWith); }
 function startVoiceCall(){ if(!_chatWith){toast('Avval suhbatdosh tanlang');return;} initiateCall('audio',_chatWith); }
@@ -878,9 +883,9 @@ function _startCallTimer() {
   }, 1000);
 }
 
-function toggleCallMic(){ if(!_localStream)return; const t=_localStream.getAudioTracks()[0]; if(!t)return; t.enabled=!t.enabled; const btn=document.getElementById('call-mic-btn'); if(btn){btn.style.background=t.enabled?'rgba(255,255,255,.12)':'rgba(229,62,62,.6)';} toast(t.enabled?'🎤 Mikrofon yoqildi':'🔇 Mikrofon o\'chirildi'); }
-function toggleCallCam(){ if(!_localStream)return; const t=_localStream.getVideoTracks()[0]; if(!t)return; t.enabled=!t.enabled; const btn=document.getElementById('call-cam-btn'); if(btn){btn.style.background=t.enabled?'rgba(255,255,255,.12)':'rgba(229,62,62,.6)';} toast(t.enabled?'📹 Kamera yoqildi':'🎥 Kamera o\'chirildi'); }
-function toggleSpeaker(){ const a=document.getElementById('call-remote-aud'); if(!a)return; a.muted=!a.muted; const btn=document.getElementById('call-spk-btn'); if(btn){btn.style.background=a.muted?'rgba(229,62,62,.6)':'rgba(255,255,255,.12)';} toast(a.muted?'🔇 Karnay o\'chirildi':'🔊 Karnay yoqildi'); }
+function toggleCallMic(){ if(!_localStream)return; const t=_localStream.getAudioTracks()[0]; if(!t)return; t.enabled=!t.enabled; const btn=document.getElementById('call-mic-btn'); if(btn) btn.classList.toggle('off',!t.enabled); toast(t.enabled?'🎤 Mikrofon yoqildi':'🔇 Mikrofon o\'chirildi'); }
+function toggleCallCam(){ if(!_localStream)return; const t=_localStream.getVideoTracks()[0]; if(!t)return; t.enabled=!t.enabled; const btn=document.getElementById('call-cam-btn'); if(btn) btn.classList.toggle('off',!t.enabled); toast(t.enabled?'📹 Kamera yoqildi':'🎥 Kamera o\'chirildi'); }
+function toggleSpeaker(){ const a=document.getElementById('call-remote-aud'); if(!a)return; a.muted=!a.muted; const btn=document.getElementById('call-spk-btn'); if(btn) btn.classList.toggle('off',a.muted); toast(a.muted?'🔇 Karnay o\'chirildi':'🔊 Karnay yoqildi'); }
 
 let _ringtoneCtx = null;
 function playRingtone() {
@@ -904,51 +909,73 @@ function removeCallUI(){ const ui=document.getElementById('call-ui'); if(ui){ui.
 function showCallUI(type, user, state) {
   removeCallUI();
   const color=user.color||'#C8922A', av=initials(user.name||user.username);
+  const statusTxt = state==='calling' ? 'Chaqirilmoqda...' : 'Ulandi ✓';
+  const avatarHtml = user.avatar
+    ? '<img src="'+esc(user.avatar)+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">'
+    : '<div style="width:100%;height:100%;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;color:#fff;font-family:Syne,sans-serif">'+av+'</div>';
   const div=document.createElement('div'); div.id='call-ui';
-  div.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(4,4,16,.96);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;backdrop-filter:blur(10px)';
+  div.className='call-overlay';
 
   if(type==='video') {
-    div.innerHTML=`<div style="width:min(520px,98vw);background:#0a0a14;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.07);box-shadow:0 32px 80px rgba(0,0,0,.9);display:flex;flex-direction:column">
-      <div style="padding:12px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:10px">
-        <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#fff;font-family:'Syne',sans-serif">${esc(user.name||user.username)}</div><div style="font-size:12px;color:rgba(255,255,255,.35);margin-top:2px" id="call-status">${state==='calling'?'Chaqirilmoqda...':'Ulandi ✓'}</div></div>
-        <div style="font-size:13px;font-weight:600;color:${color};font-family:'Syne',sans-serif" id="call-timer"></div>
-      </div>
-      <div style="position:relative;background:#050508;aspect-ratio:4/3;overflow:hidden">
-        <div id="call-no-cam" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f1117,#1a1d2e)">
-          ${user.avatar?`<img src="${esc(user.avatar)}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.12)">`:`<div style="width:80px;height:80px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#fff;font-family:'Syne',sans-serif">${av}</div>`}
-        </div>
-        <video id="call-remote-vid" autoplay playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none"></video>
-        <video id="call-local-vid"  autoplay playsinline muted style="position:absolute;bottom:10px;right:10px;width:88px;height:66px;object-fit:cover;border-radius:10px;border:2px solid rgba(255,255,255,.18);background:#111;z-index:2"></video>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:16px;background:#0a0a14">
-        <button id="call-mic-btn" onclick="toggleCallMic()" style="width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg></button>
-        <button id="call-cam-btn" onclick="toggleCallCam()" style="width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
-        <button onclick="endCall()" style="width:58px;height:58px;border-radius:50%;background:#e53e3e;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(229,62,62,.5)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6z"/></svg></button>
-        <button onclick="toggleFullscreen()" style="width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
-      </div>
-    </div>`;
+    div.innerHTML='<div class="call-card" style="width:min(560px,96vw);border-radius:22px">'+
+      '<div style="position:relative;aspect-ratio:16/10;background:#05060d">'+
+        '<div id="call-no-cam" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0b0d16,#151a2c)">'+
+          '<div style="width:88px;height:88px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.14);box-shadow:0 8px 30px rgba(0,0,0,.5)">'+avatarHtml+'</div>'+
+        '</div>'+
+        '<video id="call-remote-vid" autoplay playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none"></video>'+
+        '<video id="call-local-vid" autoplay playsinline muted style="position:absolute;bottom:14px;right:14px;width:118px;height:88px;object-fit:cover;border-radius:14px;border:2px solid rgba(255,255,255,.22);background:#000;z-index:2;box-shadow:0 6px 24px rgba(0,0,0,.5)"></video>'+
+        '<div style="position:absolute;top:0;left:0;right:0;padding:14px 18px;display:flex;align-items:center;gap:10px;background:linear-gradient(rgba(0,0,0,.62),transparent)">'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-size:16px;font-weight:700;color:#fff;font-family:Syne,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(user.name||user.username)+'</div>'+
+            '<div style="font-size:12px;color:rgba(255,255,255,.55);margin-top:2px"><span id="call-status">'+statusTxt+'</span></div>'+
+          '</div>'+
+          '<div id="call-timer" style="font-size:13px;font-weight:700;color:#fff;background:rgba(0,0,0,.4);padding:5px 12px;border-radius:99px;font-family:Syne,sans-serif"></div>'+
+        '</div>'+
+        '<div style="position:absolute;bottom:0;left:0;right:0;padding:20px 18px;display:flex;align-items:center;justify-content:center;gap:18px;background:linear-gradient(transparent,rgba(0,0,0,.62))">'+
+          '<button id="call-mic-btn" class="call-ctl call-ctl-sm" onclick="toggleCallMic()" title="Mikrofon">'+
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>'+
+          '</button>'+
+          '<button id="call-cam-btn" class="call-ctl call-ctl-sm" onclick="toggleCallCam()" title="Kamera">'+
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>'+
+          '</button>'+
+          '<button class="call-ctl call-ctl-end call-ctl-primary" onclick="endCall()" title="Tugatish">'+
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6z"/></svg>'+
+          '</button>'+
+          '<button onclick="toggleFullscreen()" class="call-ctl call-ctl-sm" title="To&#39;liq ekran">'+
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+
+          '</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
   } else {
-    div.innerHTML=`<div style="width:min(310px,92vw);background:#0a0a14;border-radius:28px;border:1px solid rgba(255,255,255,.07);padding:38px 22px 28px;display:flex;flex-direction:column;align-items:center;gap:18px;box-shadow:0 32px 80px rgba(0,0,0,.9)">
-      <div style="position:relative">
-        <div style="position:absolute;inset:-14px;border-radius:50%;border:1.5px solid ${color}44;animation:pulse-call 2s ease infinite"></div>
-        <div style="position:absolute;inset:-26px;border-radius:50%;border:1px solid ${color}22;animation:pulse-call 2s ease infinite .5s"></div>
-        ${user.avatar?`<img src="${esc(user.avatar)}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid ${color}44;position:relative;z-index:1">`:`<div style="width:88px;height:88px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;font-family:'Syne',sans-serif;position:relative;z-index:1">${av}</div>`}
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:20px;font-weight:800;color:#fff;font-family:'Syne',sans-serif">${esc(user.name||user.username)}</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.35);margin-top:5px" id="call-status">${state==='calling'?'Chaqirilmoqda...':'Ulandi ✓'}</div>
-        <div style="font-size:14px;font-weight:600;color:${color};margin-top:3px;font-family:'Syne',sans-serif" id="call-timer"></div>
-      </div>
-      <div id="call-wave" style="display:flex;align-items:center;gap:3px;height:24px;opacity:0;transition:opacity .3s">
-        ${Array.from({length:8},(_,i)=>`<div style="width:4px;background:${color};border-radius:2px;animation:voiceAnim 1.2s ease infinite;animation-delay:${(i*.15).toFixed(2)}s"></div>`).join('')}
-      </div>
-      <audio id="call-remote-aud" autoplay style="display:none"></audio>
-      <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
-        <button id="call-mic-btn" onclick="toggleCallMic()" style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg></button>
-        <button onclick="endCall()" style="width:64px;height:64px;border-radius:50%;background:#e53e3e;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 20px rgba(229,62,62,.55)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6z"/></svg></button>
-        <button id="call-spk-btn" onclick="toggleSpeaker()" style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg></button>
-      </div>
-    </div>`;
+    div.innerHTML='<div class="call-card" style="width:min(340px,92vw);padding:46px 24px 34px;display:flex;flex-direction:column;align-items:center;gap:22px">'+
+      '<div style="position:absolute;top:-70px;right:-70px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,'+color+'33,transparent 70%);filter:blur(6px)"></div>'+
+      '<div class="call-avatar-wrap">'+
+        '<div class="call-ring" style="border-color:'+color+'"></div>'+
+        '<div class="call-ring" style="border-color:'+color+'"></div>'+
+        '<div style="width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.1);box-shadow:0 10px 34px rgba(0,0,0,.55)">'+avatarHtml+'</div>'+
+      '</div>'+
+      '<div style="text-align:center">'+
+        '<div style="font-size:22px;font-weight:800;color:#fff;font-family:Syne,sans-serif">'+esc(user.name||user.username)+'</div>'+
+        '<div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:6px"><span id="call-status">'+statusTxt+'</span></div>'+
+        '<div style="font-size:14px;font-weight:700;color:'+color+';margin-top:5px;font-family:Syne,sans-serif" id="call-timer"></div>'+
+      '</div>'+
+      '<div id="call-wave" style="display:flex;align-items:center;gap:4px;height:26px;opacity:0;transition:opacity .35s">'+
+        Array.from({length:7},(_,i)=>'<div style="width:4px;height:8px;border-radius:3px;background:'+color+';animation:voiceAnim 1.2s ease infinite;animation-delay:'+(i*.13).toFixed(2)+'s"></div>').join('')+
+      '</div>'+
+      '<audio id="call-remote-aud" autoplay style="display:none"></audio>'+
+      '<div style="display:flex;align-items:center;gap:18px;margin-top:8px">'+
+        '<button id="call-mic-btn" class="call-ctl call-ctl-sm" onclick="toggleCallMic()" title="Mikrofon">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>'+
+        '</button>'+
+        '<button class="call-ctl call-ctl-end call-ctl-primary" onclick="endCall()" title="Tugatish">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6z"/></svg>'+
+        '</button>'+
+        '<button id="call-spk-btn" class="call-ctl call-ctl-sm" onclick="toggleSpeaker()" title="Karnay">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>'+
+        '</button>'+
+      '</div>'+
+    '</div>';
   }
   document.body.appendChild(div);
 }
@@ -956,31 +983,40 @@ function showCallUI(type, user, state) {
 function showIncomingCallUI(data) {
   removeCallUI();
   const color=data.from_color||'#C8922A', av=initials(data.from_name||data.from_username||'?');
+  const label = data.call_type==='video' ? '📹 Video qo\'ng\'iroq' : '📞 Ovozli qo\'ng\'iroq';
+  const avatarHtml = data.from_avatar
+    ? '<img src="'+esc(data.from_avatar)+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">'
+    : '<div style="width:100%;height:100%;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;color:#fff;font-family:Syne,sans-serif">'+av+'</div>';
   const div=document.createElement('div'); div.id='call-ui';
-  div.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(4,4,16,.96);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;backdrop-filter:blur(10px)';
-  const label = data.call_type==='video'?'📹 Video qo\'ng\'iroq':'📞 Ovozli qo\'ng\'iroq';
-  div.innerHTML=`<div style="width:min(310px,92vw);background:#0a0a14;border-radius:28px;border:1px solid rgba(255,255,255,.07);padding:38px 22px 32px;display:flex;flex-direction:column;align-items:center;gap:20px;box-shadow:0 32px 80px rgba(0,0,0,.9)">
-    <div style="position:relative">
-      <div style="position:absolute;inset:-14px;border-radius:50%;border:2px solid ${color}55;animation:pulse-call 1.4s ease infinite"></div>
-      <div style="position:absolute;inset:-26px;border-radius:50%;border:1px solid ${color}28;animation:pulse-call 1.4s ease infinite .4s"></div>
-      ${data.from_avatar?`<img src="${esc(data.from_avatar)}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid ${color}55;position:relative;z-index:1">`:`<div style="width:88px;height:88px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;font-family:'Syne',sans-serif;position:relative;z-index:1">${av}</div>`}
-    </div>
-    <div style="text-align:center">
-      <div style="font-size:21px;font-weight:800;color:#fff;font-family:'Syne',sans-serif">${esc(data.from_name||data.from_username)}</div>
-      <div style="font-size:14px;color:${color};margin-top:5px">${label}</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:3px">Sizga qo'ng'iroq qilyapti...</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:26px;margin-top:8px">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-        <button onclick="rejectCall('${esc(data.from_id)}')" style="width:62px;height:62px;border-radius:50%;background:#e53e3e;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(229,62,62,.5)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        <span style="font-size:12px;color:rgba(255,255,255,.4)">Rad etish</span>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-        <button onclick="acceptCall()" style="width:62px;height:62px;border-radius:50%;background:#22c55e;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(34,197,94,.55);animation:pulse-green 1.4s ease infinite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6z"/></svg></button>
-        <span style="font-size:12px;color:rgba(255,255,255,.4)">Qabul qilish</span>
-      </div>
-    </div>
-  </div>`;
+  div.className='call-overlay';
+  div.innerHTML='<div class="call-card" style="width:min(360px,92vw);padding:44px 26px 36px;display:flex;flex-direction:column;align-items:center;gap:22px">'+
+    '<div style="position:absolute;top:-70px;right:-70px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,'+color+'44,transparent 70%);filter:blur(6px)"></div>'+
+    '<div style="position:absolute;bottom:-60px;left:-60px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.18),transparent 70%);filter:blur(8px)"></div>'+
+    '<div class="call-avatar-wrap">'+
+      '<div class="call-ring" style="border-color:'+color+'"></div>'+
+      '<div class="call-ring" style="border-color:'+color+'"></div>'+
+      '<div style="width:100px;height:100px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.12);box-shadow:0 12px 40px rgba(0,0,0,.6)">'+avatarHtml+'</div>'+
+    '</div>'+
+    '<div style="text-align:center">'+
+      '<div style="font-size:23px;font-weight:800;color:#fff;font-family:Syne,sans-serif">'+esc(data.from_name||data.from_username)+'</div>'+
+      '<div style="font-size:14px;font-weight:600;color:'+color+';margin-top:7px">'+label+'</div>'+
+      '<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">Sizga qo\'ng\'iroq qilyapti...</div>'+
+    '</div>'+
+    '<div style="display:flex;align-items:flex-start;gap:34px;margin-top:14px">'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:9px">'+
+        '<button class="call-ctl call-ctl-end call-ctl-primary" onclick="rejectCall(\''+esc(data.from_id)+'\')" title="Rad etish">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+        '</button>'+
+        '<span style="font-size:12px;color:rgba(255,255,255,.45)">Rad etish</span>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:9px">'+
+        '<button class="call-ctl call-ctl-ok call-ctl-primary call-pulse" onclick="acceptCall()" title="Qabul qilish">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="26"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6z"/></svg>'+
+        '</button>'+
+        '<span style="font-size:12px;color:rgba(255,255,255,.45)">Qabul qilish</span>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
   document.body.appendChild(div);
   playRingtone();
   showBrowserNotif(label, (data.from_name||data.from_username)+' sizga qo\'ng\'iroq qilyapti', data.from_avatar);
