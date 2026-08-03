@@ -880,6 +880,7 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .com-dd.open{display:block;}
 .com-dd-item{display:flex;align-items:center;gap:8px;padding:8px 13px;cursor:pointer;transition:background .13s;font-size:13px;color:var(--tx2);}
 .com-dd-item:hover{background:var(--bg2);}
+.com-dd-item.com-dd-hint{cursor:default;pointer-events:none;}
 .com-dd-dot{width:18px;height:18px;border-radius:50%;}
 
 /* MESSAGES - THE MAIN FIX */

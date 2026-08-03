@@ -300,9 +300,15 @@ async function initComPicker() {
   if (!inp||!dd) return;
   inp.oninput = () => {
     const q = inp.value.toLowerCase();
-    const matches = _allComs.filter(c=>c.slug.includes(q)||c.name.toLowerCase().includes(q)).slice(0,8);
+    const mine = _allComs.filter(c=>c.is_member);
+    const matches = (q ? mine.filter(c=>c.slug.includes(q)||c.name.toLowerCase().includes(q)) : mine).slice(0,8);
     dd.innerHTML = '';
-    if (!matches.length || !q) { dd.classList.remove('open'); return; }
+    if (!matches.length) { dd.classList.remove('open'); return; }
+    if (q && matches.length < 8) {
+      const d = document.createElement('div'); d.className='com-dd-item com-dd-hint';
+      d.innerHTML = '<span style="opacity:.5;font-size:11px;color:var(--tx3)">Jamoani qidiring yoki quyidagi tanlang</span>';
+      dd.appendChild(d);
+    }
     matches.forEach(c => {
       const d = document.createElement('div'); d.className='com-dd-item';
       d.innerHTML = c.avatar
@@ -313,8 +319,9 @@ async function initComPicker() {
     });
     dd.classList.add('open');
   };
+  inp.onfocus = inp.oninput;
   inp.oninput();
-  document.addEventListener('click', e=>{ if(!inp.contains(e.target)&&!dd.contains(e.target)) dd.classList.remove('open'); }, {once:true});
+  document.addEventListener('click', e=>{ if(!inp.contains(e.target)&&!dd.contains(e.target)) dd.classList.remove('open'); });
 }
 
 /* ═══ SEARCH ═══ */
