@@ -1214,7 +1214,7 @@ async function loadAdmin(){
     const d=await API.adminStats();
     el.innerHTML=`
       <div class="admin-stats">
-          ${[['👥','Foydalanuvchilar',d.users,'#4D8FFF'],['📝','Postlar',d.posts,'#46C97A'],['💬','Izohlar',d.comments,'#9B6FD4'],['🚩','Shikoyatlar',d.reports,'#E8703A']].map(([ico,l,v,c])=>`
+          ${[['👥','Foydalanuvchilar',d.user_count ?? d.users?.length ?? 0,'#4D8FFF'],['📝','Postlar',d.posts,'#46C97A'],['💬','Izohlar',d.comments,'#9B6FD4'],['🚩','Shikoyatlar',d.reports,'#E8703A']].map(([ico,l,v,c])=>`
           <div style="padding:16px 12px;text-align:center;border-right:1px solid var(--border)">
             <div style="font-size:20px;margin-bottom:4px">${ico}</div>
             <div style="font-size:22px;font-weight:800;font-family:'Syne',sans-serif;color:${c}">${fmtNum(v)}</div>
@@ -1249,8 +1249,9 @@ function renderAdminContent(d) {
   const q = (_adminSearch||'').toLowerCase();
   if (_adminTab === 'users') {
     const users = (d.users||[]).filter(u => !q || u.username.toLowerCase().includes(q) || u.name.toLowerCase().includes(q));
+    const shown = q ? users.slice(0,50) : users.slice(0,3);
     el.innerHTML = `<div class="set-card" style="padding:0">
-      ${users.slice(0,50).map(u=>`
+      ${shown.map(u=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">
         <div class="av" style="${avStyle(u,38)};border-radius:50%;font-size:13px;flex-shrink:0">${avHtml(u,38,12)}</div>
         <div style="flex:1;min-width:0">
@@ -1268,6 +1269,7 @@ function renderAdminContent(d) {
         </div>
       </div>`).join('')}
       ${!users.length?`<div style="padding:20px;text-align:center;color:var(--tx4);font-size:13px">Hech narsa topilmadi</div>`:''}
+      ${!q && users.length > 3?`<div style="padding:12px 14px;text-align:center;color:var(--tx4);font-size:12px">Yana ${users.length-3} foydalanuvchi bor — yuqoridagi qidiruvdan toping 🔍</div>`:''}
     </div>`;
   } else {
     const reports = (d.reports||[]).filter(r => !q || r.reason.toLowerCase().includes(q) || (r.rname||'').toLowerCase().includes(q));

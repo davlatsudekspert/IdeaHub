@@ -798,7 +798,7 @@ async function route(req, res) {
     const stats = await Q.adminStats();
     const reports = (await Q.rpAll()).map(r => ({ ...r, ago: ago(r.created_at) }));
     const users = await Q.uAll();
-    return json(res, { ...stats, reports, users });
+    return json(res, { ...stats, user_count: stats.users, reports, users });
   }
   if (p === '/api/admin/action' && m === 'POST') {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
