@@ -1213,8 +1213,7 @@ async function loadAdmin(){
   try {
     const d=await API.adminStats();
     el.innerHTML=`
-      <div class="set-card" style="padding:0;overflow:hidden">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr)">
+      <div class="admin-stats">
           ${[['👥','Foydalanuvchilar',d.users,'#4D8FFF'],['📝','Postlar',d.posts,'#46C97A'],['💬','Izohlar',d.comments,'#9B6FD4'],['🚩','Shikoyatlar',d.reports,'#E8703A']].map(([ico,l,v,c])=>`
           <div style="padding:16px 12px;text-align:center;border-right:1px solid var(--border)">
             <div style="font-size:20px;margin-bottom:4px">${ico}</div>
@@ -1222,14 +1221,13 @@ async function loadAdmin(){
             <div style="font-size:11px;color:var(--tx4);margin-top:2px">${l}</div>
           </div>`).join('')}
         </div>
-      </div>
       <div style="display:flex;gap:4px;margin-bottom:12px">
         <button class="sort-btn${_adminTab==='users'?' active':''}" onclick="switchAdminTab('users')" style="flex:1">👥 Foydalanuvchilar</button>
         <button class="sort-btn${_adminTab==='reports'?' active':''}" onclick="switchAdminTab('reports')" style="flex:1">🚩 Shikoyatlar</button>
       </div>
       <div style="position:relative;margin-bottom:12px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--tx4);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="inp" id="admin-search-inp" placeholder="Qidiruv..." value="${esc(_adminSearch)}" oninput="_adminSearch=this.value;renderAdminContent(${JSON.stringify(d).replace(/</g,'\\u003c')})" style="padding-left:34px">
+        <input class="inp" id="admin-search-inp" placeholder="Qidiruv..." value="${esc(_adminSearch)}" oninput="_adminSearch=this.value;renderAdminContent(window._adminLastData)" style="padding-left:34px">
       </div>
       <div id="admin-tab-content"></div>`;
     renderAdminContent(d);

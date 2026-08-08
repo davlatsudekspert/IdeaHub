@@ -192,6 +192,13 @@ function toggleMobileSearch(){
   if(open) setTimeout(()=>inp?.focus(),100);
   else if(inp) inp.value='';
 }
+function openMobileSearch(){
+  const bar=document.getElementById('mobile-search-bar');
+  const inp=document.getElementById('mobile-search-inp');
+  if(!bar) return;
+  bar.classList.add('open');
+  setTimeout(()=>inp?.focus(),100);
+}
 
 /* ═══ CREATE COMMUNITY API PATCH ═══ */
 API.createCom = (slug,name,desc,color) => api('POST','/communities',{slug,name,description:desc,color});
@@ -219,4 +226,4 @@ window.showAuthModal=showAuthModal;window.closeAuthModal=closeAuthModal;window.s
 window.requireAuth=requireAuth;window.doAmLogin=doAmLogin;window.doAmReg=doAmReg;window.doAmForgot=doAmForgot;
 window.doReset=doReset;window.closeReset=closeReset;window.openForgotFromReset=openForgotFromReset;
 window.syncTopbar=syncTopbar;window.boot=boot;window.toggleTheme=toggleTheme;window.doLogout=doLogout;
-window.onTopSearch=onTopSearch;window.setBnActive=setBnActive;window.toggleMobileSearch=toggleMobileSearch;
+window.onTopSearch=onTopSearch;window.setBnActive=setBnActive;window.toggleMobileSearch=toggleMobileSearch;window.openMobileSearch=openMobileSearch;

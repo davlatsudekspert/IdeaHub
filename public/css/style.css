@@ -952,6 +952,9 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 
 /* SETTINGS */
 .set-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:20px;margin-bottom:12px;box-shadow:var(--shadow);}
+.admin-stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;margin-bottom:12px;box-shadow:var(--shadow);}
+.admin-stats > div:last-child{border-right:none !important;}
+@media(max-width:600px){ .admin-stats{grid-template-columns:repeat(2,1fr);} }
 .set-title{font-size:15px;font-weight:800;margin-bottom:16px;font-family:'Syne',sans-serif;display:flex;align-items:center;gap:8px;color:var(--tx1);line-height:1;}
 .set-title-ico{font-size:16px;width:20px;flex-shrink:0;}
 .av-upload{display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg2);border-radius:var(--r-lg);border:1px dashed var(--border2);margin-bottom:13px;transition:border-color .18s;}
@@ -1013,6 +1016,7 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 
 html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
 body { overflow-x: hidden; }
+#mobile-search-bar { display: none; }
 
 /* ── DESKTOP default sidebar width ── */
 @media (max-width: 900px) { :root { --sb-w: 0px; } }
@@ -1207,7 +1211,7 @@ body { overflow-x: hidden; }
   #mobile-search-inp {
     width: 100%; background: var(--bg2);
     border: 1px solid var(--border2); border-radius: 22px;
-    padding: 9px 16px; font-size: 13px; color: var(--tx1);
+    padding: 9px 16px 9px 36px; font-size: 13px; color: var(--tx1);
     transition: border-color .17s;
   }
   #mobile-search-inp:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 3px var(--gold-soft); }
@@ -1230,6 +1234,22 @@ body { overflow-x: hidden; }
   [data-theme="dark"] .bubble.me {
     background: linear-gradient(135deg, #7B2FFF, #00D4FF);
   }
+}
+
+/* ════════════════════════════════════
+   NARROW MOBILE  ≤ 380px  (bottom nav)
+════════════════════════════════════ */
+@media (max-width: 380px) {
+  .bn-item svg { width: 19px !important; height: 19px !important; }
+  .bn-item span { font-size: 9px; }
+  .bn-item .bn-post-inner { width: 40px; height: 40px; }
+  .bn-badge { top: 4px; right: calc(50% - 16px); min-width: 14px; height: 14px; font-size: 8px; }
+  .bn-item .bn-post-inner svg { width: 18px !important; height: 18px !important; }
+}
+
+/* ═══ SECTION SAFE AREA (never hidden behind bottom nav) ═══ */
+@media (max-width: 600px) {
+  .section { padding-bottom: 6px; }
 }
 
 /* ════════════════════════════════════

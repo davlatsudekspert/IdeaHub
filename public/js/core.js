@@ -49,6 +49,8 @@ function goSec(id) {
   document.querySelectorAll('.lsb-btn[data-sec]').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
   // Full-screen messages view (sidebar hidden)
   document.getElementById('layout')?.classList.toggle('msgs-full', id === 'msgs');
+  // Close mobile search bar when leaving search section
+  if (id !== 'search') { const mb = document.getElementById('mobile-search-bar'); if (mb) mb.classList.remove('open'); }
   window.scrollTo(0,0);
   // Update bottom nav
   const bnMap = { home:'bn-home', popular:'bn-popular', notifs:'bn-notifs', msgs:'bn-msgs', user:'bn-profile' };
