@@ -1154,9 +1154,12 @@ body { overflow-x: hidden; }
   .msg-list {
     width: 100%; border-right: none;
     border-bottom: 1px solid var(--border);
-    max-height: 190px; flex-shrink: 0;
+    max-height: none; flex: 1; min-height: 0;
   }
-  .chat-col  { min-height: 0; flex: 1; }
+  .chat-col  { min-height: 0; flex: 1; display: none; }
+  .msg-wrap.chat-open .msg-list { display: none; }
+  .msg-wrap.chat-open .chat-col { display: flex; }
+  .msg-wrap.chat-open .chat-col .msg-back-btn { display: inline-flex; }
   .chat-msgs { padding: 10px; gap: 6px; }
   .bubble    { max-width: 84%; font-size: 13.5px; padding: 8px 11px; }
   .chat-inp-row { padding: 7px 10px; gap: 6px; }

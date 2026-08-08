@@ -471,6 +471,7 @@ function convLastText(last) {
   return body.slice(0, 42);
 }
 async function loadConvos() {
+  document.querySelector('.msg-wrap')?.classList.remove('chat-open');
   try {
     const convos = await API.messages();
     loadContactsScroll(convos); // horizontal scroll
@@ -502,12 +503,16 @@ async function loadConvos() {
 
 async function openChat(user) {
   _chatWith=user; _rendered.clear();
+  document.querySelector('.msg-wrap')?.classList.add('chat-open');
   const emptyPanel=document.getElementById('chat-empty');
   const panel=document.getElementById('chat-panel');
   if(emptyPanel) emptyPanel.style.display='none';
   if(panel) { panel.style.opacity='0'; panel.classList.add('vis'); requestAnimationFrame(()=>{panel.style.transition='opacity .22s';panel.style.opacity='1';}); }
   const hd=document.getElementById('chat-hd-inner');
   if(hd) hd.innerHTML=`
+    <button class="msg-back-btn" onclick="closeChatMobile()" title="Orqaga">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
     <div class="av" style="${avStyle(user,40)};border-radius:50%;flex-shrink:0;cursor:pointer" onclick="openUser('${esc(user.username)}')">${avHtml(user,40,15)}</div>
     <div style="flex:1;min-width:0;cursor:pointer" onclick="openUser('${esc(user.username)}')">
       <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(user.name||user.username)}</div>
@@ -533,6 +538,11 @@ async function openChat(user) {
     b.scrollTop=b.scrollHeight;
   } catch(e) { console.error('openChat:',e); }
   setTimeout(()=>{ document.getElementById('chat-inp')?.focus(); initSwipeToReply(); }, 200);
+}
+
+function closeChatMobile() {
+  document.querySelector('.msg-wrap')?.classList.remove('chat-open');
+  document.querySelectorAll('.conv').forEach(r=>r.classList.remove('active'));
 }
 
 function addBubble(msg, isMe) {
@@ -1533,7 +1543,7 @@ window.buildComRsb=buildComRsb; window.editCom=editCom; window.doEditCom=doEditC
 window.openSubmit=openSubmit; window.closeSubmit=closeSubmit; window.switchSubTab=switchSubTab; window.doSubmitPost=doSubmitPost; window.initComPicker=initComPicker;
 window.onTopSearch=onTopSearch; window.doSearch=doSearch; window.setSearchType=setSearchType;
 window.loadNotifs=loadNotifs; window.loadNotifCount=loadNotifCount; window.markNotifs=markNotifs; window.updNotifDot=updNotifDot; window.initNotifWS=initNotifWS;
-window.loadConvos=loadConvos; window.openChat=openChat; window.addBubble=addBubble; window.sendMsg=sendMsg; window.startChat=startChat; window.initMsgWS=initMsgWS;
+window.loadConvos=loadConvos; window.openChat=openChat; window.closeChatMobile=closeChatMobile; window.addBubble=addBubble; window.sendMsg=sendMsg; window.startChat=startChat; window.initMsgWS=initMsgWS;
 window.filterConvos=filterConvos; window.cancelReply=cancelReply; window.setReplyTo=setReplyTo;
 window.showMsgCtxMenu=showMsgCtxMenu; window.togglePinMsg=togglePinMsg; window.deleteMsg=deleteMsg; window.forwardMsg=forwardMsg; window.playVoiceMsg=playVoiceMsg;
 window.initSwipeToReply=initSwipeToReply;
