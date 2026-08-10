@@ -45,6 +45,7 @@ let _curSec = 'home';
 function curSec() { return _curSec; }
 function goSec(id) {
   _curSec = id;
+  pauseAllVideos();
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'sec-'+id));
   document.querySelectorAll('.lsb-btn[data-sec]').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
   // Full-screen messages view (sidebar hidden)
@@ -201,6 +202,14 @@ function cvpFullscreen(btn) {
   if (document.fullscreenElement) document.exitFullscreen();
   else player.requestFullscreen?.();
 }
+function pauseAllVideos() {
+  document.querySelectorAll('.custom-video-player video').forEach(video => {
+    if (video.paused) return;
+    video.pause();
+    const btn = video.closest('.custom-video-player')?.querySelector('.play-btn');
+    if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+  });
+}
 function capToggle(id) {
   const audio = document.getElementById(id+'-audio');
   const btn   = document.querySelector('#'+id+' .play-btn');
@@ -274,6 +283,7 @@ window.avStyle=avStyle; window.avHtml=avHtml; window.curSec=curSec; window.goSec
 window.Tok=Tok; window.API=API; window.WS=WS;
 window.debouncedSearch=debouncedSearch; window.toggleReplyForm=toggleReplyForm;
 window.cvpToggle=cvpToggle; window.cvpSeek=cvpSeek; window.cvpMute=cvpMute; window.cvpFullscreen=cvpFullscreen;
+window.pauseAllVideos=pauseAllVideos;
 window.capToggle=capToggle; window.capSeek=capSeek; window.setupAudioPlayer=setupAudioPlayer;
 window.requestPushPermission=requestPushPermission; window.showBrowserNotif=showBrowserNotif;
 window.initPushNotifications=initPushNotifications;

@@ -183,8 +183,15 @@ function openSubmit(comSlug) {
   if (inp && comSlug) inp.value = comSlug;
   document.getElementById('sub-title').value='';
   document.getElementById('sub-body').value='';
-  // Reset poll
+  // Reset polls
   resetPollForm();
+  resetVidPollForm();
+  const vf = document.getElementById('sub-vid-file');
+  if (vf) vf.value = '';
+  const vp = document.getElementById('sub-vid-preview');
+  if (vp) vp.innerHTML = '';
+  const vs = document.getElementById('vid-poll-section');
+  if (vs) vs.style.display = 'none';
   document.getElementById('sub-overlay').classList.add('open');
   setTimeout(()=>document.getElementById('sub-title')?.focus(),150);
 }
@@ -218,6 +225,18 @@ function resetPollForm() {
   if (pollDays) pollDays.value = '3';
 }
 
+function resetVidPollForm() {
+  const en = document.getElementById('vid-poll-enable');
+  if (en) en.checked = false;
+  const fields = document.getElementById('vid-poll-fields');
+  if (fields) fields.style.display = 'none';
+  const q = document.getElementById('vid-poll-question');
+  if (q) q.value = '';
+  document.querySelectorAll('#vid-poll-options .poll-opt-inp').forEach(i=>i.value='');
+  const d = document.getElementById('vid-poll-days');
+  if (d) d.value = '3';
+}
+
 async function doSubmitPost() {
   const title   = (document.getElementById('sub-title')?.value||'').trim();
   const community = (document.getElementById('sub-com-inp')?.value||'').trim();
@@ -249,11 +268,11 @@ async function doSubmitPost() {
         const days = parseInt(document.getElementById('vid-poll-days')?.value)||3;
         const optEls = document.querySelectorAll('#vid-poll-options .poll-opt-inp');
         const opts = Array.from(optEls).map(i=>i.value.trim()).filter(Boolean);
-        if (question && opts.length >= 2) {
-          fd.append('poll_question', question);
-          fd.append('poll_options', JSON.stringify(opts.slice(0,5)));
-          fd.append('poll_days', days);
-        }
+        if (!question) { toast("So'rovnoma savolini yozing"); return; }
+        if (opts.length < 2) { toast("So'rovnoma uchun kamida 2 ta variant kerak"); return; }
+        fd.append('poll_question', question);
+        fd.append('poll_options', JSON.stringify(opts.slice(0,5)));
+        fd.append('poll_days', days);
       }
       post = await API.createPost(fd,true);
     } else if (_subTab === 'audio') {

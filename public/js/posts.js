@@ -23,7 +23,7 @@ function buildPost(p, isDetail = false) {
   /* poll */
   let pollHtml = '';
   if (p.poll) {
-    pollHtml = buildPollHtml(p.poll, p.id, isMine || isDetail);
+    pollHtml = buildPollHtml(p.poll, p.id, isMine);
   }
 
   return `
