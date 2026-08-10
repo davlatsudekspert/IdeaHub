@@ -203,7 +203,8 @@ function cvpFullscreen(btn) {
   else player.requestFullscreen?.();
 }
 function pauseAllVideos() {
-  document.querySelectorAll('.custom-video-player video').forEach(video => {
+  document.querySelectorAll('video').forEach(video => {
+    if (video.id === 'call-remote-vid' || video.id === 'call-local-vid') return;
     if (video.paused) return;
     video.pause();
     const btn = video.closest('.custom-video-player')?.querySelector('.play-btn');

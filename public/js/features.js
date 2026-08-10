@@ -177,6 +177,7 @@ async function doEditCom() {
 /* ═══ SUBMIT POST ═══ */
 function openSubmit(comSlug) {
   _subTab = 'text';
+  pauseAllVideos();
   document.querySelectorAll('.sub-tab').forEach(b=>b.classList.toggle('active',b.dataset.t==='text'));
   document.querySelectorAll('.sub-form').forEach(f=>f.classList.toggle('active',f.dataset.t==='text'));
   const inp = document.getElementById('sub-com-inp');

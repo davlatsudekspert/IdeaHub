@@ -103,7 +103,10 @@ const server = http.createServer(async (req, res) => {
   if (!fs.existsSync(fp)) fp = path.join(PUB, 'index.html');
   if (fs.existsSync(fp)) {
     const ext = path.extname(fp).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'text/plain' });
+    const headers = { 'Content-Type': MIME[ext] || 'text/plain' };
+    // JS/CSS: never cache, so new deploys reach users immediately
+    if (ext === '.js' || ext === '.css') headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    res.writeHead(200, headers);
     return fs.createReadStream(fp).pipe(res);
   }
   res.writeHead(404); res.end('Not found');
