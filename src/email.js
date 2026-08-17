@@ -5,7 +5,10 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.SMTP_USER || 'mindhubteamm@gmail.com',
     pass: process.env.SMTP_PASS || 'kjvj wrbr wyqh tfti'
-  }
+  },
+  connectionTimeout: 10000,
+  greetingTimeout: 5000,
+  socketTimeout: 10000
 });
 
 async function sendVerifyCode(email, code, username) {

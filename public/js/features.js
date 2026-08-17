@@ -1336,6 +1336,26 @@ async function loadSettings() {
         <button class="btn btn-gold" onclick="doChpass()">O'zgartirish</button>
       </div>
       <div class="set-card">
+        <div class="set-title"><span class="set-title-ico">📧</span> Parolni Tiklash (Email orqali)</div>
+        <div id="set-reset-step1">
+          <div style="font-size:12px;color:var(--tx4);margin-bottom:10px">Emailga 6 xonali kod yuboriladi: <strong>${esc(u.email||'email yo\'q')}</strong></div>
+          ${u.email ? `<button class="btn btn-gold" style="width:100%" id="set-reset-send-btn" onclick="settingsSendCode()">📧 Kod yuborish</button>` : `<div style="font-size:12px;color:var(--red)">Avval email manzilingizni kiriting va saqlang</div>`}
+          <div id="set-reset-err1" class="auth-err"></div>
+        </div>
+        <div id="set-reset-step2" style="display:none">
+          <div style="font-size:12px;color:var(--tx4);margin-bottom:10px">Emailga kod yuborildi. Kodni kiriting:</div>
+          <div id="set-reset-err2" class="auth-err"></div>
+          <div class="form-row"><label class="form-lbl">6 xonali kod</label><input class="inp" id="set-reset-code" placeholder="123456" maxlength="6" style="text-align:center;font-size:18px;letter-spacing:6px"></div>
+          <div class="form-row"><label class="form-lbl">Yangi parol (6+)</label><input class="inp" id="set-reset-new" type="password" placeholder="••••••"></div>
+          <div class="form-row"><label class="form-lbl">Tasdiqlash</label><input class="inp" id="set-reset-conf" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')settingsResetByCode()"></div>
+          <button class="btn btn-gold" style="width:100%" onclick="settingsResetByCode()">Saqlash</button>
+        </div>
+        <div id="set-reset-done" style="display:none;text-align:center;padding:16px 0">
+          <div style="font-size:28px;margin-bottom:8px">✅</div>
+          <div style="font-weight:600;color:var(--grn);font-size:14px">Parol yangilandi!</div>
+        </div>
+      </div>
+      <div class="set-card">
         <div class="set-title"><span class="set-title-ico">🔔</span> Bildirishnomalar</div>
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
           <div>
@@ -1360,6 +1380,37 @@ async function loadSettings() {
         <button class="btn btn-danger" onclick="doLogout()">Hisobdan chiqish</button>
       </div>`;
   } catch(e){el.innerHTML=emptyEl('close','Xatolik',e.message);}
+}
+
+async function settingsSendCode(){
+  const btn=document.getElementById('set-reset-send-btn');
+  const err=document.getElementById('set-reset-err1');
+  if(err)err.textContent='';
+  btn.disabled=true;btn.textContent='...';
+  try{
+    const d=await API.sendCode(window._me.username);
+    document.getElementById('set-reset-step1').style.display='none';
+    document.getElementById('set-reset-step2').style.display='block';
+    document.getElementById('set-reset-code').focus();
+  }catch(e){if(err){err.textContent=e.message;err.classList.add('on');}}
+  finally{btn.disabled=false;btn.textContent='📧 Kod yuborish';}
+}
+async function settingsResetByCode(){
+  const code=(document.getElementById('set-reset-code')?.value||'').trim();
+  const np=document.getElementById('set-reset-new')?.value;
+  const cp=document.getElementById('set-reset-conf')?.value;
+  const err=document.getElementById('set-reset-err2');
+  if(err)err.textContent='';
+  if(!code||code.length!==6){if(err){err.textContent='6 xonali kod kiriting';err.classList.add('on');}return;}
+  if(!np||np.length<6){if(err){err.textContent='Parol kamida 6 belgi';err.classList.add('on');}return;}
+  if(np!==cp){if(err){err.textContent='Parollar mos emas';err.classList.add('on');}return;}
+  try{
+    const vr=await API.verifyCode(window._me.username,code);
+    await API.resetPass(vr.reset_token,np);
+    document.getElementById('set-reset-step2').style.display='none';
+    document.getElementById('set-reset-done').style.display='block';
+    toast('Parol yangilandi!');
+  }catch(e){if(err){err.textContent=e.message;err.classList.add('on');}}
 }
 
 async function saveProfile(){
