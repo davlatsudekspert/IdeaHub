@@ -1,14 +1,17 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.SMTP_USER || 'mindhubteamm@gmail.com',
     pass: process.env.SMTP_PASS || 'kjvj wrbr wyqh tfti'
   },
-  connectionTimeout: 10000,
-  greetingTimeout: 5000,
-  socketTimeout: 10000
+  family: 4,
+  connectionTimeout: 15000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000
 });
 
 async function sendVerifyCode(email, code, username) {

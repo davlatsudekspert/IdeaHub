@@ -99,7 +99,7 @@ const API = {
   communities:()       => api('GET','/communities'),
   getCom:   (slug)     => api('GET','/communities/'+slug),
   topComs:  ()         => api('GET','/communities?sort=top'),
-  popularComs:()        => api('GET','/communities/popular'),
+  popularComs:()        => api('GET','/communities?sort=top'),
 
   mineComs: ()         => { const u=window._me; return u?api('GET','/communities?mine=1').catch(()=>api('GET','/communities')):Promise.resolve([]); },
   joinCom:  (slug)     => api('POST','/communities/'+slug+'/join'),
