@@ -4,8 +4,9 @@ const { Pool } = require('pg');
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/mindhub';
 
-// Railway Postgres uses a self-signed cert; disable verification (like most Railway apps do)
-const ssl = process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false };
+// Only use SSL for remote databases (Railway etc.), disable for localhost
+const isLocal = DATABASE_URL.includes('localhost') || DATABASE_URL.includes('127.0.0.1');
+const ssl = isLocal ? false : (process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false });
 const pool = new Pool({ connectionString: DATABASE_URL, ssl });
 
 // Sync-style facade over async pg pool
@@ -187,20 +188,65 @@ const SCHEMA = `
     expires_at INTEGER NOT NULL,
     used INTEGER DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS verify_codes (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at INTEGER DEFAULT (extract(epoch from now())::int)
+  );
+
+  ALTER TABLE communities ADD COLUMN IF NOT EXISTS is_private INTEGER DEFAULT 0;
+  ALTER TABLE communities ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0;
+
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_chat_id TEXT;
+
+  CREATE TABLE IF NOT EXISTS community_roles (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    community_id TEXT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'admin',
+    PRIMARY KEY(user_id, community_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS community_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    community_id TEXT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    status TEXT DEFAULT 'pending',
+    created_at INTEGER DEFAULT (extract(epoch from now())::int),
+    UNIQUE(user_id, community_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS tg_codes (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    phone TEXT NOT NULL,
+    code TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at INTEGER DEFAULT (extract(epoch from now())::int)
+  );
 `;
 
 const Q = {
   /* users */
-  uById:      (id) => db.get('SELECT id,username,name,email,color,bio,avatar,banner,karma,followers,is_admin,is_banned,ban_reason,created_at FROM users WHERE id=$1', [id]),
+  uById:      (id) => db.get('SELECT id,username,name,email,color,bio,avatar,banner,karma,followers,is_admin,is_banned,ban_reason,created_at,phone FROM users WHERE id=$1', [id]),
   uByIdFull:  (id) => db.get('SELECT * FROM users WHERE id=$1', [id]),
   uByLogin:   (u) => db.get('SELECT * FROM users WHERE lower(username)=lower($1) OR lower(email)=lower($1)', [u]),
   uBySlug:    (param) => db.get('SELECT id,username,name,color,bio,avatar,banner,karma,followers,is_admin,is_banned,created_at FROM users WHERE lower(username)=lower($1) OR id=$1', [param]),
   uByUsername:(uname) => db.get('SELECT id,username,name,email FROM users WHERE lower(username)=lower($1)', [uname]),
+  uByPhone:   (phone) => db.get('SELECT id,username,name,email FROM users WHERE phone=$1', [phone]),
+  uByPhoneFull:(phone)=> db.get('SELECT * FROM users WHERE phone=$1', [phone]),
   uSearch:    (p1, p2) => db.all('SELECT id,username,name,color,avatar,karma FROM users WHERE lower(username) LIKE $1 OR lower(name) LIKE $2 LIMIT 20', [p1, p2]),
   uInsert:    (id, username, name, email, pass, color) => db.run('INSERT INTO users(id,username,name,email,pass,color) VALUES($1,$2,$3,$4,$5,$6)', [id, username, name, email, pass, color]),
   uExists:    (username, email) => db.get('SELECT id FROM users WHERE lower(username)=lower($1) OR lower(email)=lower($2)', [username, email]),
   uUpdProf:   (name, bio, id) => db.run('UPDATE users SET name=$1,bio=$2 WHERE id=$3', [name, bio, id]),
   uUpdPass:   (pass, id) => db.run('UPDATE users SET pass=$1 WHERE id=$2', [pass, id]),
+  uSetPhone:  (phone, id) => db.run('UPDATE users SET phone=$1 WHERE id=$2', [phone, id]),
+  uSetTgChat: (chat_id, id) => db.run('UPDATE users SET tg_chat_id=$1 WHERE id=$2', [chat_id, id]),
   uUpdAv:     (avatar, id) => db.run('UPDATE users SET avatar=$1 WHERE id=$2', [avatar, id]),
   uUpdBanner: (banner, id) => db.run('UPDATE users SET banner=$1 WHERE id=$2', [banner, id]),
   uKarma:     (delta, id) => db.run('UPDATE users SET karma=karma+$1 WHERE id=$2', [delta, id]),
@@ -215,8 +261,8 @@ const Q = {
   comAll:    () => db.all('SELECT c.*,u.username as oname FROM communities c JOIN users u ON c.owner_id=u.id ORDER BY c.members DESC LIMIT 60'),
   comById:   (id) => db.get('SELECT c.*,u.username as oname FROM communities c JOIN users u ON c.owner_id=u.id WHERE c.id=$1', [id]),
   comBySlug: (slug) => db.get('SELECT c.*,u.username as oname FROM communities c JOIN users u ON c.owner_id=u.id WHERE lower(c.slug)=lower($1)', [slug]),
-  comSearch: (p1, p2) => db.all('SELECT c.*,u.username as oname FROM communities c JOIN users u ON c.owner_id=u.id WHERE lower(c.slug) LIKE $1 OR lower(c.name) LIKE $2 LIMIT 20', [p1, p2]),
-  comInsert: (id, slug, name, description, color, owner_id) => db.run('INSERT INTO communities(id,slug,name,description,color,owner_id) VALUES($1,$2,$3,$4,$5,$6)', [id, slug, name, description, color, owner_id]),
+  comSearch: (p1, p2) => db.all('SELECT c.*,u.username as oname FROM communities c JOIN users u ON c.owner_id=u.id WHERE c.is_private=0 AND (lower(c.slug) LIKE $1 OR lower(c.name) LIKE $2) LIMIT 20', [p1, p2]),
+  comInsert: (id, slug, name, description, color, owner_id, is_private) => db.run('INSERT INTO communities(id,slug,name,description,color,owner_id,is_private) VALUES($1,$2,$3,$4,$5,$6,$7)', [id, slug, name, description, color, owner_id, is_private||0]),
   comUpdate: (name, description, rules, color, id) => db.run('UPDATE communities SET name=$1,description=$2,rules=$3,color=$4 WHERE id=$5', [name, description, rules, color, id]),
   comDelete: (id) => db.run('DELETE FROM communities WHERE id=$1', [id]),
   comIncMem: (id) => db.run('UPDATE communities SET members=members+1 WHERE id=$1', [id]),
@@ -323,6 +369,38 @@ const Q = {
   rtGet:     (token) => db.get("SELECT * FROM reset_tokens WHERE token=$1 AND used=0 AND expires_at>extract(epoch from now())::int", [token]),
   rtUse:     (token) => db.run('UPDATE reset_tokens SET used=1 WHERE token=$1', [token]),
   rtClean:   () => db.run("DELETE FROM reset_tokens WHERE expires_at<extract(epoch from now())::int OR used=1"),
+
+  /* verify codes (email) */
+  vcInsert:  (user_id, code, expires_at) => db.run('INSERT INTO verify_codes(user_id,code,expires_at) VALUES($1,$2,$3)', [user_id, code, expires_at]),
+  vcGet:     (user_id, code) => db.get("SELECT * FROM verify_codes WHERE user_id=$1 AND code=$2 AND used=0 AND expires_at>extract(epoch from now())::int", [user_id, code]),
+  vcUse:     (id) => db.run('UPDATE verify_codes SET used=1 WHERE id=$1', [id]),
+  vcClean:   () => db.run("DELETE FROM verify_codes WHERE expires_at<extract(epoch from now())::int OR used=1"),
+
+  /* community roles */
+  comRoleGet:    (user_id, community_id) => db.get('SELECT role FROM community_roles WHERE user_id=$1 AND community_id=$2', [user_id, community_id]),
+  comRoleSet:    (user_id, community_id, role) => db.run('INSERT INTO community_roles(user_id,community_id,role) VALUES($1,$2,$3) ON CONFLICT (user_id,community_id) DO UPDATE SET role=EXCLUDED.role', [user_id, community_id, role]),
+  comRoleDel:    (user_id, community_id) => db.run('DELETE FROM community_roles WHERE user_id=$1 AND community_id=$2', [user_id, community_id]),
+  comRoleList:   (community_id) => db.all('SELECT cr.user_id,cr.role,u.username,u.name,u.avatar,u.color FROM community_roles cr JOIN users u ON cr.user_id=u.id WHERE cr.community_id=$1', [community_id]),
+  comIsAdmin:    (user_id, community_id) => db.get('SELECT 1 FROM community_roles WHERE user_id=$1 AND community_id=$2 AND role=$3', [user_id, community_id, 'admin']),
+  comCanManage:  (user_id, community_id) => db.get('SELECT 1 FROM communities WHERE id=$1 AND owner_id=$2', [user_id, community_id]) || db.get('SELECT 1 FROM community_roles WHERE user_id=$1 AND community_id=$2 AND role=$3', [user_id, community_id, 'admin']),
+
+  /* community views */
+  comIncViews:   (id) => db.run('UPDATE communities SET views=views+1 WHERE id=$1', [id]),
+  comByViews:    () => db.all('SELECT c.*,u.username as oname FROM communities c JOIN users u ON c.owner_id=u.id ORDER BY c.views DESC,c.members DESC LIMIT 20'),
+
+  /* community requests */
+  comReqInsert:  (id, user_id, community_id) => db.run('INSERT INTO community_requests(id,user_id,community_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING', [id, user_id, community_id]),
+  comReqGet:     (user_id, community_id) => db.get('SELECT * FROM community_requests WHERE user_id=$1 AND community_id=$2 AND status=$3', [user_id, community_id, 'pending']),
+  comReqByCom:   (community_id) => db.all('SELECT cr.*,u.username,u.name,u.avatar,u.color FROM community_requests cr JOIN users u ON cr.user_id=u.id WHERE cr.community_id=$1 AND cr.status=$2 ORDER BY cr.created_at DESC', [community_id, 'pending']),
+  comReqApprove: (id) => db.run('UPDATE community_requests SET status=$1 WHERE id=$2', ['approved', id]),
+  comReqReject:  (id) => db.run('UPDATE community_requests SET status=$1 WHERE id=$2', ['rejected', id]),
+  comReqAll:     (user_id) => db.all('SELECT cr.*,c.name as cname,c.slug as cslug,c.color as ccolor FROM community_requests cr JOIN communities c ON cr.community_id=c.id WHERE cr.user_id=$1 ORDER BY cr.created_at DESC', [user_id]),
+
+  /* telegram codes */
+  tgCodeInsert:  (id, user_id, phone, code, expires_at) => db.run('INSERT INTO tg_codes(id,user_id,phone,code,expires_at) VALUES($1,$2,$3,$4,$5)', [id, user_id, phone, code, expires_at]),
+  tgCodeGet:     (user_id, code) => db.get('SELECT * FROM tg_codes WHERE user_id=$1 AND code=$2 AND used=0 AND expires_at>extract(epoch from now())::int', [user_id, code]),
+  tgCodeUse:     (id) => db.run('UPDATE tg_codes SET used=1 WHERE id=$1', [id]),
+  tgCodeClean:   () => db.run("DELETE FROM tg_codes WHERE expires_at<extract(epoch from now())::int OR used=1"),
 
   /* admin */
   adminStats: () => db.get("SELECT (SELECT COUNT(*)::int FROM users) as users,(SELECT COUNT(*)::int FROM posts) as posts,(SELECT COUNT(*)::int FROM comments) as comments,(SELECT COUNT(*)::int FROM communities) as communities,(SELECT COUNT(*)::int FROM reports WHERE status='pending') as reports"),

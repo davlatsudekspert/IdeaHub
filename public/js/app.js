@@ -11,6 +11,7 @@ function switchAmTab(t){
   document.getElementById('am-reg-form').style.display=t==='register'?'block':'none';
   document.getElementById('am-forgot-form').style.display=t==='forgot'?'block':'none';
   document.getElementById('am-err').classList.remove('on');
+  if(t==='forgot'&&typeof resetForgotForm==='function') resetForgotForm();
 }
 function requireAuth(cb){ if(window._me){cb&&cb();return true;}showAuthModal();return false;}
 
@@ -48,14 +49,65 @@ async function doAmForgot(){
   if(!uname){err.textContent="Username kiriting";err.classList.add('on');return;}
   const btn=document.getElementById('am-forgot-btn'); btn.disabled=true;btn.textContent='...';
   try{
-    await API.forgotPass(uname);
-    err.style.cssText='background:rgba(46,158,91,.08);border-color:rgba(46,158,91,.2);color:var(--grn);margin-bottom:12px;display:block;padding:9px 13px;font-size:13px;border-radius:var(--r)';
-    err.textContent='✅ Parol tiklash havolasi emailga yuborildi!';
+    window._fgUsername=uname;
+    const d=await API.sendCode(uname);
+    document.getElementById('fg-step1').style.display='none';
+    document.getElementById('fg-email-mask').textContent=d.email||'';
+    document.getElementById('fg-step2').style.display='block';
+    document.getElementById('fg-code').focus();
   }catch(e){err.textContent=e.message;err.classList.add('on');}
-  finally{btn.disabled=false;btn.textContent='Yuborish';}
+  finally{btn.disabled=false;btn.textContent='Kod yuborish';}
+}
+async function doVerifyCode(){
+  const code=(document.getElementById('fg-code').value||'').trim();
+  const err=document.getElementById('fg-code-err'); err.classList.remove('on');
+  if(!code||code.length!==6){err.textContent='6 xonali kod kiriting';err.classList.add('on');return;}
+  const btn=document.getElementById('fg-code-btn'); btn.disabled=true;btn.textContent='...';
+  try{
+    const d=await API.verifyCode(window._fgUsername,code);
+    window._resetToken=d.reset_token;
+    document.getElementById('fg-step2').style.display='none';
+    document.getElementById('fg-step3').style.display='block';
+    document.getElementById('fg-new-pass').focus();
+  }catch(e){err.textContent=e.message;err.classList.add('on');}
+  finally{btn.disabled=false;btn.textContent='Tekshirish';}
+}
+function fgResendCode(){
+  document.getElementById('fg-step2').style.display='none';
+  document.getElementById('fg-step1').style.display='block';
+  document.getElementById('fg-code').value='';
+  document.getElementById('fg-code-err').classList.remove('on');
+}
+async function doResetByEmail(){
+  const p=document.getElementById('fg-new-pass').value;
+  const c=document.getElementById('fg-confirm-pass').value;
+  const err=document.getElementById('fg-pass-err'); err.classList.remove('on');
+  if(p!==c){err.textContent='Parollar mos emas';err.classList.add('on');return;}
+  if(p.length<6){err.textContent='Parol kamida 6 belgi';err.classList.add('on');return;}
+  const btn=document.getElementById('fg-reset-btn'); btn.disabled=true;btn.textContent='...';
+  try{
+    await API.resetPass(window._resetToken,p);
+    switchAmTab('login');
+    document.getElementById('am-err').style.cssText='background:rgba(46,158,91,.08);border-color:rgba(46,158,91,.2);color:var(--grn);margin-bottom:12px;display:block;padding:9px 13px;font-size:13px;border-radius:var(--r)';
+    document.getElementById('am-err').textContent='✅ Parol o\'zgartirildi! Yangi parol bilan kiring.';
+    document.getElementById('am-err').classList.add('on');
+    resetForgotForm();
+  }catch(e){err.textContent=e.message;err.classList.add('on');}
+  finally{btn.disabled=false;btn.textContent='Saqlash';}
+}
+function resetForgotForm(){
+  document.getElementById('fg-step1').style.display='block';
+  document.getElementById('fg-step2').style.display='none';
+  document.getElementById('fg-step3').style.display='none';
+  document.getElementById('am-forgot-uname').value='';
+  document.getElementById('fg-code').value='';
+  document.getElementById('fg-new-pass').value='';
+  document.getElementById('fg-confirm-pass').value='';
+  document.getElementById('fg-code-err').classList.remove('on');
+  document.getElementById('fg-pass-err').classList.remove('on');
 }
 
-/* ═══ RESET PASSWORD ═══ */
+/* ═══ RESET PASSWORD (old flow - keep for backwards compat) ═══ */
 async function checkResetToken(){
   const params=new URLSearchParams(location.search);
   const token=params.get('reset_token'); if(!token) return;
@@ -201,7 +253,7 @@ function openMobileSearch(){
 }
 
 /* ═══ CREATE COMMUNITY API PATCH ═══ */
-API.createCom = (slug,name,desc,color) => api('POST','/communities',{slug,name,description:desc,color});
+API.createCom = (slug,name,desc,color,is_private) => api('POST','/communities',{slug,name,description:desc,color,is_private});
 
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded',async()=>{

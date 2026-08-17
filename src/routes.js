@@ -2,7 +2,7 @@
 const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
-const { Q, hmac } = require('./db');
+const { Q, hmac, db } = require('./db');
 const { verifyToken, makeToken, uid } = require('./helpers');
 const ws = require('./ws');
 
@@ -92,7 +92,7 @@ function ago(ts) {
   const d = Math.floor(Date.now()/1000) - ts;
   if (d < 60) return d + 's';
   if (d < 3600) return Math.floor(d/60) + 'm';
-  if (d < 86400) return Math.floor(d/3600) + 's';
+  if (d < 86400) return Math.floor(d/3600) + 'soat';
   return Math.floor(d/86400) + 'k';
 }
 async function fmtPost(p, uid2) {
@@ -216,6 +216,39 @@ async function route(req, res) {
     return json(res, { ok: true });
   }
 
+  /* ══ EMAIL CODE RESET ══ */
+  if (p === '/api/auth/send-code' && m === 'POST') {
+    const b = await readBody(req);
+    const uname = (b.username || '').trim().toLowerCase();
+    if (!uname) return json(res, { error: 'Username kiriting' }, 400);
+    await Q.vcClean();
+    const user = await Q.uByUsername(uname);
+    if (!user || !user.email) return json(res, { error: 'Foydalanuvchi topilmadi' }, 404);
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Math.floor(Date.now() / 1000) + 600;
+    await Q.vcInsert(user.id, code, expiresAt);
+    try {
+      const { sendVerifyCode } = require('./email');
+      await sendVerifyCode(user.email, code, user.username);
+      return json(res, { ok: true, email: user.email.replace(/(.{2}).*(@.*)/, '$1***$2') });
+    } catch (e) {
+      console.error('Email yuborish xatoligi:', e.message);
+      return json(res, { error: 'Email yuborishda xatolik' }, 500);
+    }
+  }
+  if (p === '/api/auth/verify-code' && m === 'POST') {
+    const b = await readBody(req);
+    if (!b.username || !b.code) return json(res, { error: 'Username va kod kerak' }, 400);
+    const user = await Q.uByUsername(b.username.trim().toLowerCase());
+    if (!user) return json(res, { error: 'Topilmadi' }, 404);
+    const vc = await Q.vcGet(user.id, b.code.trim());
+    if (!vc) return json(res, { error: "Kod noto'g'ri yoki muddati tugagan" }, 400);
+    const resetToken = require('crypto').randomBytes(32).toString('hex');
+    await Q.rtInsert(resetToken, user.id, Math.floor(Date.now() / 1000) + 1800);
+    await Q.vcUse(vc.id);
+    return json(res, { ok: true, reset_token: resetToken, username: user.username });
+  }
+
   /* ══ ME ══ */
   if (p === '/api/me' && m === 'GET') {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
@@ -229,6 +262,14 @@ async function route(req, res) {
     const b = await readBody(req);
     await Q.uUpdProf((b.name || '').trim(), (b.bio || '').trim(), u2);
     return json(res, await Q.uById(u2));
+  }
+  if (p === '/api/me/phone' && m === 'PUT') {
+    const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
+    const b = await readBody(req);
+    const phone = (b.phone || '').trim();
+    if (!phone || !/^\+?\d{10,15}$/.test(phone)) return json(res, { error: 'Raqam formati: +998901234567' }, 400);
+    await Q.uSetPhone(phone, u2);
+    return json(res, { ok: true, phone });
   }
   if (p === '/api/me/avatar' && m === 'POST') {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
@@ -323,10 +364,15 @@ async function route(req, res) {
     const coms = sq ? await Q.comSearch('%'+sq+'%','%'+sq+'%') : await Q.comAll();
     const out = [];
     for (const c of coms) {
+      const isMember = u2 ? !!(await Q.memCheck(u2, c.id)) : false;
+      if (c.is_private && !isMember && u2 !== c.owner_id) continue;
+      const role = u2 ? await Q.comRoleGet(u2, c.id) : null;
       out.push({
         ...c,
-        is_member: u2 ? !!(await Q.memCheck(u2, c.id)) : false,
-        is_owner: u2 === c.owner_id
+        is_member: isMember,
+        is_owner: u2 === c.owner_id,
+        is_admin: !!(role && role.role === 'admin'),
+        pending_request: u2 ? !!(await Q.comReqGet(u2, c.id)) : false
       });
     }
     return json(res, out);
@@ -336,10 +382,21 @@ async function route(req, res) {
     const slug = p.split('/')[3];
     const com  = await Q.comBySlug(slug);
     if (!com) return json(res, { error: 'Topilmadi' }, 404);
+    const isMember = u2 ? !!(await Q.memCheck(u2, com.id)) : false;
+    if (com.is_private && !isMember && u2 !== com.owner_id) return json(res, { error: "Maxfiy jamoa" }, 403);
+    await Q.comIncViews(com.id);
+    const role = u2 ? await Q.comRoleGet(u2, com.id) : null;
+    const admins = await Q.comRoleList(com.id);
+    const pendingReqs = (u2 && (u2 === com.owner_id || (role && role.role === 'admin'))) ? await Q.comReqByCom(com.id) : [];
     return json(res, {
       ...com,
+      views: (com.views || 0) + 1,
       is_member: u2 ? !!(await Q.memCheck(u2, com.id)) : false,
-      is_owner: u2 === com.owner_id
+      is_owner: u2 === com.owner_id,
+      is_admin: !!(role && role.role === 'admin'),
+      pending_request: u2 ? !!(await Q.comReqGet(u2, com.id)) : false,
+      admins,
+      pending_requests: pendingReqs
     });
   }
   if (p === '/api/communities' && m === 'POST') {
@@ -351,7 +408,8 @@ async function route(req, res) {
     if (!name) return json(res, { error: "Nom kiritng" }, 400);
     if (await Q.comBySlug(slug)) return json(res, { error: 'Bu slug band' }, 409);
     const cid = uid();
-    await Q.comInsert(cid, slug, name, (b.description||'').trim(), (b.color||'#C8922A'), u2);
+    const is_private = b.is_private ? 1 : 0;
+    await Q.comInsert(cid, slug, name, (b.description||'').trim(), (b.color||'#C8922A'), u2, is_private);
     await Q.memJoin(u2, cid);
     await Q.comIncMem(cid);
     return json(res, await Q.comById(cid), 201);
@@ -362,7 +420,8 @@ async function route(req, res) {
     const com  = await Q.comBySlug(slug);
     if (!com) return json(res, { error: 'Topilmadi' }, 404);
     const user = await Q.uById(u2);
-    if (com.owner_id !== u2 && !user?.is_admin) return json(res, { error: "Ruxsat yo'q" }, 403);
+    const role = await Q.comRoleGet(u2, com.id);
+    if (com.owner_id !== u2 && !user?.is_admin && !(role && role.role === 'admin')) return json(res, { error: "Ruxsat yo'q" }, 403);
     await Q.comDelete(com.id);
     ws.sendAll({ type: 'com_deleted', data: { slug } });
     return json(res, { ok: true });
@@ -374,16 +433,19 @@ async function route(req, res) {
     const com = await Q.comBySlug(slug);
     if (!com) return json(res, { error: 'Topilmadi' }, 404);
     const user = await Q.uById(u2);
-    if (com.owner_id !== u2 && !user?.is_admin) return json(res, { error: "Ruxsat yo'q" }, 403);
+    const role = await Q.comRoleGet(u2, com.id);
+    if (com.owner_id !== u2 && !user?.is_admin && !(role && role.role === 'admin')) return json(res, { error: "Ruxsat yo'q" }, 403);
     const ct = req.headers['content-type'] || '';
     let name = com.name, desc = com.description, rules = com.rules, color = com.color;
     let avatar = com.avatar, banner = com.banner;
+    let is_private = com.is_private;
     if (ct.includes('multipart')) {
       const { fields, files } = await parseMultipart(req);
       name  = (fields.name  || com.name).trim();
       desc  = (fields.description || com.description || '').trim();
       rules = (fields.rules || com.rules || '').trim();
       color = fields.color || com.color;
+      if (fields.is_private !== undefined) is_private = fields.is_private === 'true' || fields.is_private === '1' ? 1 : 0;
       if (files.avatar) { const r = saveFile(files.avatar,['.jpg','.jpeg','.png','.webp']); if(r) avatar=r; }
       if (files.banner) { const r = saveFile(files.banner,['.jpg','.jpeg','.png','.webp']); if(r) banner=r; }
     } else {
@@ -392,11 +454,15 @@ async function route(req, res) {
       desc  = (b.description || com.description || '').trim();
       rules = (b.rules || com.rules || '').trim();
       color = b.color || com.color;
+      if (b.is_private !== undefined) is_private = b.is_private ? 1 : 0;
     }
     try {
       await Q.comUpdateFull(name, desc, rules, color, avatar||null, banner||null, com.id);
     } catch {
       await Q.comUpdate(name, desc, rules, color, com.id);
+    }
+    if (is_private !== com.is_private) {
+      await db.run('UPDATE communities SET is_private=$1 WHERE id=$2', [is_private, com.id]);
     }
     return json(res, await Q.comBySlug(slug));
   }
@@ -407,8 +473,82 @@ async function route(req, res) {
     if (!com) return json(res, { error: 'Topilmadi' }, 404);
     const isMem = !!(await Q.memCheck(u2, com.id));
     if (isMem) { await Q.memLeave(u2, com.id); await Q.comDecMem(com.id); return json(res, { joined: false }); }
+    if (com.is_private) {
+      const existing = await Q.comReqGet(u2, com.id);
+      if (existing) return json(res, { error: 'So\'rov allaqachon yuborilgan', pending: true });
+      await Q.comReqInsert(uid(), u2, com.id);
+      return json(res, { pending: true, message: 'So\'rov yuborildi, admin tasdiqlashi kerak' });
+    }
     await Q.memJoin(u2, com.id); await Q.comIncMem(com.id);
     return json(res, { joined: true });
+  }
+  /* Community admin management */
+  if (p.match(/^\/api\/communities\/[^/]+\/admin$/) && m === 'POST') {
+    const u2 = await getAuthNotBanned(req, res); if (!u2) return true;
+    const slug = p.split('/')[3];
+    const com = await Q.comBySlug(slug);
+    if (!com) return json(res, { error: 'Topilmadi' }, 404);
+    if (com.owner_id !== u2) return json(res, { error: "Faqat egasi admin tayyorlay oladi" }, 403);
+    const b = await readBody(req);
+    if (!b.user_id) return json(res, { error: 'user_id kerak' }, 400);
+    await Q.comRoleSet(b.user_id, com.id, 'admin');
+    return json(res, { ok: true });
+  }
+  if (p.match(/^\/api\/communities\/[^/]+\/admin$/) && m === 'DELETE') {
+    const u2 = await getAuthNotBanned(req, res); if (!u2) return true;
+    const slug = p.split('/')[3];
+    const com = await Q.comBySlug(slug);
+    if (!com) return json(res, { error: 'Topilmadi' }, 404);
+    if (com.owner_id !== u2) return json(res, { error: "Faqat egasi admin olib tashlay oladi" }, 403);
+    const b = await readBody(req);
+    if (!b.user_id) return json(res, { error: 'user_id kerak' }, 400);
+    await Q.comRoleDel(b.user_id, com.id);
+    return json(res, { ok: true });
+  }
+  /* Community request approve/reject */
+  if (p.match(/^\/api\/communities\/[^/]+\/request\/[^/]+$/) && m === 'POST') {
+    const u2 = await getAuthNotBanned(req, res); if (!u2) return true;
+    const slug = p.split('/')[3];
+    const reqId = p.split('/')[5];
+    const com = await Q.comBySlug(slug);
+    if (!com) return json(res, { error: 'Topilmadi' }, 404);
+    const role = await Q.comRoleGet(u2, com.id);
+    if (com.owner_id !== u2 && !(role && role.role === 'admin')) return json(res, { error: "Ruxsat yo'q" }, 403);
+    const b = await readBody(req);
+    if (b.action === 'approve') {
+      await Q.comReqApprove(reqId);
+      const request = await db.get('SELECT * FROM community_requests WHERE id=$1', [reqId]);
+      if (request) {
+        await Q.memJoin(request.user_id, com.id);
+        await Q.comIncMem(com.id);
+      }
+    } else {
+      await Q.comReqReject(reqId);
+    }
+    return json(res, { ok: true });
+  }
+  /* Popular teams by views */
+  if (p === '/api/communities/popular' && m === 'GET') {
+    const u2 = getAuth(req);
+    const coms = await Q.comByViews();
+    const out = [];
+    for (const c of coms) {
+      const role = u2 ? await Q.comRoleGet(u2, c.id) : null;
+      out.push({
+        ...c,
+        is_member: u2 ? !!(await Q.memCheck(u2, c.id)) : false,
+        is_owner: u2 === c.owner_id,
+        is_admin: !!(role && role.role === 'admin'),
+        pending_request: u2 ? !!(await Q.comReqGet(u2, c.id)) : false
+      });
+    }
+    return json(res, out);
+  }
+  /* My requests */
+  if (p === '/api/communities/my-requests' && m === 'GET') {
+    const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
+    const reqs = await Q.comReqAll(u2);
+    return json(res, reqs);
   }
 
   /* ══ POSTS ══ */
@@ -421,7 +561,16 @@ async function route(req, res) {
     else if (sort === 'top') rows = await Q.pHot(off);
     else rows = await Q.pHot(off);
     const out = [];
-    for (const r of rows) out.push(await fmtPost(r, u2));
+    for (const r of rows) {
+      if (r.community_id) {
+        const pc = await db.get('SELECT is_private FROM communities WHERE id=$1', [r.community_id]);
+        if (pc && pc.is_private) {
+          const isMember = u2 ? !!(await Q.memCheck(u2, r.community_id)) : false;
+          if (!isMember) continue;
+        }
+      }
+      out.push(await fmtPost(r, u2));
+    }
     return json(res, out);
   }
   if (p === '/api/posts/saved' && m === 'GET') {
@@ -567,6 +716,11 @@ async function route(req, res) {
     const slug = p.split('/')[3];
     const sort = q.sort || 'hot';
     const off  = parseInt(q.offset) || 0;
+    const com  = await Q.comBySlug(slug);
+    if (com && com.is_private) {
+      const isMember = u2 ? !!(await Q.memCheck(u2, com.id)) : false;
+      if (!isMember && u2 !== com.owner_id) return json(res, { error: "Maxfiy jamoa, a'zo bo'ling" }, 403);
+    }
     const rows = sort === 'new' ? await Q.pComNew(slug, off) : await Q.pCom(slug, off);
     const out = [];
     for (const r of rows) out.push(await fmtPost(r, u2));
@@ -629,7 +783,8 @@ async function route(req, res) {
     const own = await Q.cmOwner(cid); if (!own) return json(res, { error: 'Topilmadi' }, 404);
     const user = await Q.uById(u2);
     if (own.user_id !== u2 && !user?.is_admin) return json(res, { error: "Ruxsat yo'q" }, 403);
-    await Q.cmDelete(cid);
+    await db.run("DELETE FROM comment_votes WHERE comment_id=$1", [cid]);
+    await db.run("DELETE FROM comments WHERE id=$1", [cid]);
     ws.sendAll({ type: 'del_comment', data: { commentId: cid, postId: own.post_id } });
     return json(res, { ok: true });
   }
@@ -817,6 +972,61 @@ async function route(req, res) {
     const b    = await readBody(req);
     await Q.rpResolve(b.status || 'resolved', rid);
     return json(res, { ok: true });
+  }
+
+  /* ══ TELEGRAM PASSWORD RESET ══ */
+  if (p === '/api/auth/tg-send-code' && m === 'POST') {
+    const b = await readBody(req);
+    const phone = (b.phone || '').trim();
+    if (!phone) return json(res, { error: 'Telefon raqam kerak' }, 400);
+    // Find user by phone — check users table directly
+    const user = await db.get('SELECT id, username, name, phone, tg_chat_id FROM users WHERE phone=$1', [phone]);
+    if (!user) return json(res, { error: 'Bu raqamga bog\'langan akkaunt topilmadi' }, 404);
+    // Clean old codes
+    await Q.tgCodeClean();
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeId = uid();
+    const expiresAt = Math.floor(Date.now()/1000) + 600;
+    await Q.tgCodeInsert(codeId, user.id, phone, code, expiresAt);
+    // Send code via Telegram bot if chat_id is linked
+    if (user.tg_chat_id) {
+      const botToken = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
+      const telegramMsg = `🔐 MindHub parol tiklash kodi: ${code}\n\nBu kod 10 daqiqa davomida amal qiladi.\nAgar siz bu so'rovni yubormagan bo'lsangiz, xabarni e'tiborsiz qoldiring.`;
+      try {
+        const https = require('https');
+        const sendUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        const postData = JSON.stringify({ chat_id: user.tg_chat_id, text: telegramMsg });
+        const sendReq = https.request(sendUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' } }, (resp) => {
+          let data = '';
+          resp.on('data', chunk => data += chunk);
+          resp.on('end', () => { try { console.log('TG send:', JSON.parse(data)); } catch {} });
+        });
+        sendReq.on('error', (e) => console.log('TG send error:', e.message));
+        sendReq.write(postData);
+        sendReq.end();
+      } catch(e) { console.log('TG bot error:', e.message); }
+    } else {
+      console.log('No tg_chat_id for user:', user.username, '- code:', code);
+    }
+    return json(res, { ok: true, message: 'Kod yuborildi. Telegramdan tekshiring.' });
+  }
+  if (p === '/api/auth/tg-verify-code' && m === 'POST') {
+    const b = await readBody(req);
+    const phone = (b.phone || '').trim();
+    const code = (b.code || '').trim();
+    const newPass = (b.new_pass || '').trim();
+    if (!phone || !code) return json(res, { error: 'Telefon raqam va kod kerak' }, 400);
+    const user = await db.get('SELECT id FROM users WHERE phone=$1', [phone]);
+    if (!user) return json(res, { error: 'Foydalanuvchi topilmadi' }, 404);
+    const codeRow = await Q.tgCodeGet(user.id, code);
+    if (!codeRow) return json(res, { error: "Noto'g'ri kod yoki muddati tugagan" }, 400);
+    if (newPass) {
+      if (newPass.length < 6) return json(res, { error: 'Parol kamida 6 belgi' }, 400);
+      await Q.uUpdPass(hmac(newPass), user.id);
+      await Q.tgCodeUse(codeRow.id);
+      return json(res, { ok: true, message: 'Parol yangilandi!' });
+    }
+    return json(res, { ok: true, verified: true });
   }
 
   return null;

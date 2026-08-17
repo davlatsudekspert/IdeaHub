@@ -84,10 +84,12 @@ const API = {
   login:    (u,p)      => api('POST','/auth/login',{username:u,password:p}),
   register: (n,u,e,p)  => api('POST','/auth/register',{name:n,username:u,email:e,password:p}),
   forgotPass:(u)       => api('POST','/auth/forgot',{username:u}),
-  verifyReset:(t)      => api('POST','/auth/reset/verify',{token:t}),
+  sendCode:(u)         => api('POST','/auth/send-code',{username:u}),
+  verifyCode:(u,c)     => api('POST','/auth/verify-code',{username:u,code:c}),
   resetPass:(t,p)      => api('POST','/auth/reset',{token:t,new_pass:p}),
   me:       ()         => api('GET','/me'),
   updMe:    (n,b)      => api('PUT','/me',{name:n,bio:b}),
+  updPhone: (p)        => api('PUT','/me/phone',{phone:p}),
   chpass:   (o,n)      => api('PUT','/me/password',{old_pass:o,new_pass:n}),
   uploadAv: (fd)       => api('POST','/me/avatar',fd,true),
   uploadBanner:(fd)    => api('POST','/me/banner',fd,true),
@@ -97,6 +99,9 @@ const API = {
   communities:()       => api('GET','/communities'),
   getCom:   (slug)     => api('GET','/communities/'+slug),
   topComs:  ()         => api('GET','/communities?sort=top'),
+  popularComs:()        => api('GET','/communities/popular'),
+  tgSendCode:(phone)=> api('POST','/auth/tg-send-code',{phone}),
+  tgVerifyCode:(phone,code,p)=> api('POST','/auth/tg-verify-code',{phone,code,new_pass:p}),
   mineComs: ()         => { const u=window._me; return u?api('GET','/communities?mine=1').catch(()=>api('GET','/communities')):Promise.resolve([]); },
   joinCom:  (slug)     => api('POST','/communities/'+slug+'/join'),
   updateCom:(slug,fd,isForm) => api('PUT','/communities/'+slug,fd,isForm),
@@ -125,9 +130,7 @@ const API = {
   callIce:    (toId,cand)   => api('POST','/call/ice',{to_id:toId,candidate:cand}),
   callEnd:    (toId)        => api('POST','/call/end',{to_id:toId}),
   callReject: (toId)        => api('POST','/call/reject',{to_id:toId}),
-  createCom:(slug,name,desc,color)=>api('POST','/communities',{slug,name,description:desc,color}),
-  updMe:    (n,b)      => api('PUT','/me',{name:n,bio:b}),
-  chpass:   (o,n)      => api('PUT','/me/password',{old_pass:o,new_pass:n}),
+  createCom:(slug,name,desc,color,is_private)=>api('POST','/communities',{slug,name,description:desc,color,is_private}),
   adminStats:()        => api('GET','/admin/stats'),
   adminAction:(b)      => api('POST','/admin/action',b),
   adminResolve:(id,s)  => api('POST','/admin/reports/'+id,{status:s}),
@@ -249,6 +252,58 @@ function setupAudioPlayer(id) {
     if (barsEl) Array.from(barsEl.children).forEach(b=>b.style.background='var(--border2)');
   });
 }
+
+/* ═══ REPORT ═══ */
+let _reportTarget = null, _reportType = null, _reportReason = '';
+
+function openReport(targetId, type) {
+  if (!requireAuth()) return;
+  _reportTarget = targetId;
+  _reportType = type;
+  _reportReason = '';
+  document.getElementById('report-reason-text').value = '';
+  document.querySelectorAll('.report-reason-btn').forEach(b => {
+    b.style.borderColor = 'var(--border2)';
+    b.style.background = 'var(--surface)';
+  });
+  document.getElementById('report-overlay')?.classList.add('open');
+}
+function closeReport() {
+  document.getElementById('report-overlay')?.classList.remove('open');
+  _reportTarget = null;
+}
+function selectReportReason(btn) {
+  document.querySelectorAll('.report-reason-btn').forEach(b => {
+    b.style.borderColor = 'var(--border2)';
+    b.style.background = 'var(--surface)';
+  });
+  btn.style.borderColor = 'var(--gold)';
+  btn.style.background = 'var(--gold-soft)';
+  _reportReason = btn.textContent.trim();
+  document.getElementById('report-reason-text').value = _reportReason;
+}
+async function submitReport() {
+  if (!_reportTarget) return;
+  const reason = (document.getElementById('report-reason-text').value || '').trim() || _reportReason;
+  if (!reason) { toast('Sabab kiriting'); return; }
+  try {
+    const body = { reason };
+    if (_reportType === 'post') body.post_id = _reportTarget;
+    else body.comment_id = _reportTarget;
+    await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
+      body: JSON.stringify(body)
+    });
+    closeReport();
+    toast("Shikoyat yuborildi. Rahmat!");
+  } catch(e) { toast('Xatolik'); }
+}
+
+window.openReport = openReport;
+window.closeReport = closeReport;
+window.selectReportReason = selectReportReason;
+window.submitReport = submitReport;
 
 /* ═══ PUSH NOTIFICATIONS ═══ */
 async function initPushNotifications() {

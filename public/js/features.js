@@ -27,18 +27,24 @@ async function openCommunity(slug) {
             ? `<img src="${esc(com.avatar)}" style="width:50px;height:50px;border-radius:50%;border:3px solid var(--surface);margin-top:-25px;object-fit:cover;flex-shrink:0" alt="">`
             : `<div class="com-hd-icon" style="background:${color}22;border:2px solid ${color}44;color:${color}">${letter}</div>`}
           <div style="flex:1">
-            <div class="com-hd-name">${esc(com.name)}</div>
-            <div class="com-hd-sub">${esc(com.slug)} &middot; ${fmtNum(com.members)} a'zo</div>
+            <div class="com-hd-name">${esc(com.name)} ${com.is_private?'<span style="font-size:11px;background:rgba(232,112,58,.12);color:#E8703A;padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:600">🔒 Maxfiy</span>':''}</div>
+            <div class="com-hd-sub">${esc(com.slug)} &middot; ${fmtNum(com.members)} a'zo &middot; 👁 ${fmtNum(com.views||0)}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
             ${com.is_owner ? `<button class="btn btn-ghost" style="padding:7px 13px;font-size:12px" onclick="editCom('${esc(com.slug)}')">⚙ Sozlash</button>
               <button class="btn btn-danger" style="padding:7px 13px;font-size:12px" onclick="openDeleteCom('${esc(com.slug)}','${esc(com.name)}')">🗑️ O'chirish</button>` : ''}
-            <button class="btn ${com.is_member?'btn-outline':'btn-gold'}" id="jb-${esc(com.id)}" onclick="toggleJoin('${esc(com.slug)}','${esc(com.id)}',this)">
-              ${com.is_member ? `${IC.check} A'zo` : `${IC.plus} Qo'shilish`}
-            </button>
+            ${com.is_owner ? `<button class="btn btn-ghost" style="padding:7px 13px;font-size:12px" onclick="openComAdmins('${esc(com.slug)}')">👥 Boshqarish</button>` : ''}
+            ${com.is_member ? `<button class="btn btn-outline" id="jb-${esc(com.id)}" onclick="toggleJoin('${esc(com.slug)}','${esc(com.id)}',this)">${IC.check} A'zo</button>`
+              : com.pending_request ? `<button class="btn btn-ghost" disabled style="padding:7px 13px;font-size:12px">⏳ Kutilmoqda</button>`
+              : com.is_private ? `<button class="btn btn-gold" onclick="toggleJoin('${esc(com.slug)}','${esc(com.id)}',this)">📩 So'rov yuborish</button>`
+              : `<button class="btn btn-gold" id="jb-${esc(com.id)}" onclick="toggleJoin('${esc(com.slug)}','${esc(com.id)}',this)">${IC.plus} Qo'shilish</button>`}
           </div>
         </div>
         ${com.description ? `<div style="padding:0 18px 14px;font-size:13px;color:var(--tx3)">${esc(com.description)}</div>` : ''}
+        ${com.admins?.length ? `<div style="padding:0 18px 10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--tx4)">
+          <span>👑 Adminlar:</span>
+          ${com.admins.map(a=>`<span style="color:var(--gold);cursor:pointer" onclick="openUser('${esc(a.username)}')">@${esc(a.username)}</span>`).join(', ')}
+        </div>` : ''}
       </div>`;
     if (fd) {
       fd.innerHTML = '';
@@ -84,7 +90,7 @@ async function loadMyComs() {
 
 async function loadTopComs() {
   try {
-    const coms = await API.topComs();
+    const coms = await API.popularComs();
     const el = document.getElementById('popular-cnt'); if(!el) return;
     el.innerHTML = '';
     if (!coms.length) { el.innerHTML = emptyEl('people',"Hali jamoalar yo'q"); return; }
@@ -100,8 +106,8 @@ async function loadTopComs() {
             ? `<img src="${esc(c.avatar)}" style="width:42px;height:42px;border-radius:12px;object-fit:cover;border:2px solid ${color}40;flex-shrink:0" alt="">`
             : `<div class="com-pop-icon" style="background:${color}18;border:2px solid ${color}40;color:${color}">${letter}</div>`}
           <div class="com-pop-info">
-            <div class="com-pop-name">${esc(c.name||c.slug)}</div>
-            <div class="com-pop-sub">${esc(c.slug)} &middot; ${fmtNum(c.members)} a'zo</div>
+            <div class="com-pop-name">${esc(c.name||c.slug)} ${c.is_private?'🔒':''}</div>
+            <div class="com-pop-sub">${esc(c.slug)} &middot; ${fmtNum(c.members)} a'zo &middot; 👁 ${fmtNum(c.views||0)}</div>
             ${c.description?`<div class="com-pop-desc">${esc(c.description)}</div>`:''}
           </div>
           <button class="com-pop-join${c.is_member?' joined':''}"
@@ -124,12 +130,119 @@ function buildComRsb(com) {
   div.innerHTML = `
     <div class="rsb-banner" style="background:${bannerStyle}"></div>
     <div class="rsb-body">
-      <div class="rsb-title">${esc(com.name)}</div>
+      <div class="rsb-title">${esc(com.name)} ${com.is_private?'🔒':''}</div>
       <div class="rsb-desc">${esc(com.description||'')}</div>
       <div class="rsb-stat"><span>A'zolar</span><strong>${fmtNum(com.members)}</strong></div>
+      <div class="rsb-stat"><span>Ko'rishlar</span><strong>${fmtNum(com.views||0)}</strong></div>
       <button class="btn btn-gold" style="width:100%;margin-top:10px" onclick="requireAuth(()=>openSubmit('${esc(com.slug)}'))">Post qo'shish</button>
     </div>`;
   el.prepend(div);
+}
+
+/* Community admin management */
+async function openComAdmins(slug) {
+  if (!requireAuth()) return;
+  try {
+    const com = await API.getCom(slug);
+    if (!com) return;
+    const ov = document.getElementById('com-admin-overlay');
+    if (!ov) return;
+    const adminsEl = document.getElementById('com-admins-list');
+    const reqsEl = document.getElementById('com-requests-list');
+    const privateBtn = document.getElementById('com-private-toggle');
+    
+    if (privateBtn) {
+      privateBtn.innerHTML = com.is_private ? '🔓 Ommaviyga o\'zgartirish' : '🔒 Maxfiyga o\'zgartirish';
+      privateBtn.onclick = () => toggleComPrivate(slug, !com.is_private);
+    }
+    
+    if (adminsEl) {
+      adminsEl.innerHTML = '';
+      if (com.admins?.length) {
+        com.admins.forEach(a => {
+          adminsEl.innerHTML += `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+              <div class="av" style="${avStyle(a,32)};border-radius:50%;flex-shrink:0">${avHtml(a,32,11)}</div>
+              <div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(a.name||a.username)}</div><div style="font-size:11px;color:var(--tx4)">u/${esc(a.username)}</div></div>
+              ${com.is_owner ? `<button class="btn btn-danger" style="font-size:11px;padding:4px 10px" onclick="removeComAdmin('${slug}','${a.user_id}')">Olib tashlash</button>` : ''}
+            </div>`;
+        });
+      } else {
+        adminsEl.innerHTML = '<div style="color:var(--tx4);font-size:13px;padding:8px 0">Adminlar yo\'q</div>';
+      }
+    }
+    
+    if (reqsEl) {
+      reqsEl.innerHTML = '';
+      if (com.pending_requests?.length) {
+        com.pending_requests.forEach(r => {
+          reqsEl.innerHTML += `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+              <div class="av" style="${avStyle(r,32)};border-radius:50%;flex-shrink:0">${avHtml(r,32,11)}</div>
+              <div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(r.name||r.username)}</div><div style="font-size:11px;color:var(--tx4)">u/${esc(r.username)} · ${r.ago || ''}</div></div>
+              <button class="btn btn-gold" style="font-size:11px;padding:4px 10px" onclick="handleComRequest('${slug}','${r.id}','approve')">✅</button>
+              <button class="btn btn-danger" style="font-size:11px;padding:4px 10px" onclick="handleComRequest('${slug}','${r.id}','reject')">❌</button>
+            </div>`;
+        });
+      } else {
+        reqsEl.innerHTML = '<div style="color:var(--tx4);font-size:13px;padding:8px 0">Kutilgan so\'rovlar yo\'q</div>';
+      }
+    }
+    
+    ov.classList.add('open');
+  } catch(e) { toast(e.message); }
+}
+
+async function addComAdmin(slug) {
+  const inp = document.getElementById('com-admin-username');
+  const username = (inp?.value || '').trim();
+  if (!username) { toast('Username kiriting'); return; }
+  try {
+    const user = await API.getUser(username);
+    if (!user) { toast('Foydalanuvchi topilmadi'); return; }
+    await fetch(`/api/communities/${slug}/admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
+      body: JSON.stringify({ user_id: user.id })
+    });
+    inp.value = '';
+    toast("Admin qo'shildi!");
+    openComAdmins(slug);
+  } catch(e) { toast(e.message || 'Xatolik'); }
+}
+
+async function removeComAdmin(slug, userId) {
+  if (!confirm('Adminni olib tashlamoqchimisiz?')) return;
+  try {
+    await fetch(`/api/communities/${slug}/admin`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
+      body: JSON.stringify({ user_id: userId })
+    });
+    toast('Admin olib tashlandi');
+    openComAdmins(slug);
+  } catch(e) { toast(e.message); }
+}
+
+async function toggleComPrivate(slug, isPrivate) {
+  try {
+    await API.updateCom(slug, { is_private: isPrivate });
+    toast(isPrivate ? 'Jamoa maxfiy qilindi' : 'Jamoa ommaviy qilindi');
+    openComAdmins(slug);
+    openCommunity(slug);
+  } catch(e) { toast(e.message); }
+}
+
+async function handleComRequest(slug, reqId, action) {
+  try {
+    await fetch(`/api/communities/${slug}/request/${reqId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
+      body: JSON.stringify({ action })
+    });
+    toast(action === 'approve' ? 'So\'rov qabul qilindi' : 'So\'rov rad etildi');
+    openComAdmins(slug);
+  } catch(e) { toast(e.message); }
 }
 
 async function editCom(slug) {
@@ -258,6 +371,20 @@ async function doSubmitPost() {
       const fv = document.getElementById('sub-vid-file');
       if (!fv?.files?.[0]) { toast("Video fayl tanlang"); return; }
       if (fv.files[0].size > 500*1024*1024) { toast("Video 500MB dan oshmasin"); return; }
+      // Check video duration (min 3 minutes)
+      const vidFile = fv.files[0];
+      const vidUrl = URL.createObjectURL(vidFile);
+      const dur = await new Promise((resolve) => {
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        v.onloadedmetadata = () => { URL.revokeObjectURL(vidUrl); resolve(v.duration); };
+        v.onerror = () => { URL.revokeObjectURL(vidUrl); resolve(0); };
+        v.src = vidUrl;
+      });
+      if (dur && dur < 3*60) {
+        toast("Video kamida 3 daqiqa bo'lishi kerak!");
+        return;
+      }
       const fd = new FormData();
       fd.append('title',title); fd.append('community',community); fd.append('type','video');
       fd.append('body',document.getElementById('sub-body')?.value||'');
@@ -1192,11 +1319,40 @@ async function loadSettings() {
         <button class="btn btn-gold" onclick="saveProfile()">Saqlash</button>
       </div>
       <div class="set-card">
-        <div class="set-title"><span class="set-title-ico">🔒</span> Parol</div>
+        <div class="set-title"><span class="set-title-ico">🔒</span> Parol (Oddiy)</div>
         <div class="form-row"><label class="form-lbl">Eski parol</label><input class="inp" id="cp-old" type="password" placeholder="••••••"></div>
         <div class="form-row"><label class="form-lbl">Yangi parol</label><input class="inp" id="cp-new" type="password" placeholder="••••••"></div>
         <div class="form-row"><label class="form-lbl">Tasdiqlash</label><input class="inp" id="cp-conf" type="password" placeholder="••••••"></div>
         <button class="btn btn-gold" onclick="doChpass()">O'zgartirish</button>
+      </div>
+      <div class="set-card">
+        <div class="set-title"><span class="set-title-ico">🤖</span> Parolni Tiklash (Telegram orqali)</div>
+        <div style="background:var(--gold-soft);border:1px solid var(--gold-bd);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--tx2);line-height:1.6">
+          <strong>Qanday ishlaydi?</strong><br>
+          1️⃣ Avval <a href="https://t.me/mind_hubbot" target="_blank" style="color:var(--gold);font-weight:700">@mind_hubbot</a> dan ro'yxatdan o'ting (telefon raqamingiz bilan)<br>
+          2️⃣ Quyidagi maydonlarga username va telefon raqamingizni kiriting<br>
+          3️⃣ Telegramga 6 xonali kod keladi<br>
+          4️⃣ Kodni kiriting va yangi parol o'rnating
+        </div>
+        <div id="tg-reset-step1">
+          <div class="form-row"><label class="form-lbl">Username</label><input class="inp" id="tg-rs-user" placeholder="${esc(u.username||'')}" value="${esc(u.username||'')}"></div>
+          <div class="form-row"><label class="form-lbl">Telegram raqam (+998...)</label><input class="inp" id="tg-rs-phone" placeholder="+998901234567" type="tel"></div>
+          <div id="tg-rs-err" class="auth-err"></div>
+          <button class="btn btn-gold" style="width:100%" id="tg-rs-send-btn" onclick="tgSendCode()">📡 Kod yuborish</button>
+        </div>
+        <div id="tg-reset-step2" style="display:none">
+          <div style="font-size:13px;color:var(--tx3);margin-bottom:10px">Telegramga yuborilgan 6 xonali kodni kiriting:</div>
+          <div class="form-row"><label class="form-lbl">Tasdiqlash kodi</label><input class="inp" id="tg-rs-code" placeholder="123456" maxlength="6" style="font-size:20px;text-align:center;letter-spacing:8px;font-weight:700"></div>
+          <div class="form-row"><label class="form-lbl">Yangi parol (6+ belgi)</label><input class="inp" id="tg-rs-newpass" type="password" placeholder="••••••"></div>
+          <div class="form-row"><label class="form-lbl">Parolni tasdiqlash</label><input class="inp" id="tg-rs-confirmpass" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')tgVerifyAndReset()"></div>
+          <div id="tg-rs-err2" class="auth-err"></div>
+          <button class="btn btn-gold" style="width:100%" id="tg-rs-verify-btn" onclick="tgVerifyAndReset()">✅ Tasdiqlash va saqlash</button>
+        </div>
+        <div id="tg-reset-done" style="display:none;text-align:center;padding:16px 0">
+          <div style="font-size:32px;margin-bottom:8px">✅</div>
+          <div style="font-weight:700;color:var(--grn)">Parol muvaffaqiyatli yangilandi!</div>
+          <div style="font-size:13px;color:var(--tx3);margin-top:6px">Endi yangi parol bilan kirishingiz mumkin</div>
+        </div>
       </div>
       <div class="set-card">
         <div class="set-title"><span class="set-title-ico">🔔</span> Bildirishnomalar</div>
@@ -1479,28 +1635,28 @@ async function doCreateCom(){
   const desc=(document.getElementById('nc-desc')?.value||'').trim();
   if(!slug){toast('Slug kerak');return;}
   if(!name){toast('Nom kerak');return;}
+  const isPrivate=document.querySelector('input[name="cc-priv"]:checked')?.value==='1';
   const btn=document.getElementById('cc-create-btn');
   if(btn){btn.disabled=true;btn.textContent='Yaratilmoqda...';}
   try {
     const fd = new FormData();
     fd.append('slug',slug); fd.append('name',name); fd.append('description',desc); fd.append('color',_ccColor);
+    if(isPrivate) fd.append('is_private','1');
     const bannerFile=document.getElementById('cc-banner-file')?.files?.[0];
     const avatarFile=document.getElementById('cc-avatar-file')?.files?.[0];
     if(bannerFile) fd.append('banner',bannerFile);
     if(avatarFile) fd.append('avatar',avatarFile);
-    // Create via JSON first (community creation)
-    const com = await API.createCom(slug,name,desc,_ccColor);
-    // Then upload images if selected
+    const com = await API.createCom(slug,name,desc,_ccColor,isPrivate?1:0);
     if (com && com.slug) {
-      const bannerFile=document.getElementById('cc-banner-file')?.files?.[0];
-      const avatarFile=document.getElementById('cc-avatar-file')?.files?.[0];
-      if (bannerFile || avatarFile) {
+      const bannerFile2=document.getElementById('cc-banner-file')?.files?.[0];
+      const avatarFile2=document.getElementById('cc-avatar-file')?.files?.[0];
+      if (bannerFile2 || avatarFile2) {
         try {
           const fd2 = new FormData();
           fd2.append('name', name); fd2.append('description', desc);
           fd2.append('color', _ccColor);
-          if (bannerFile) fd2.append('banner', bannerFile);
-          if (avatarFile) fd2.append('avatar', avatarFile);
+          if (bannerFile2) fd2.append('banner', bannerFile2);
+          if (avatarFile2) fd2.append('avatar', avatarFile2);
           await API.updateCom(com.slug, fd2, true);
         } catch(e) { console.error('Image upload:', e); }
       }
@@ -1527,12 +1683,12 @@ function previewSubVid(inp){
     const dur=vid.duration;
     const warnEl=document.getElementById('vid-warn');
     const warnTxt=document.getElementById('vid-warn-text');
-    if(dur<10*60){
+    if(dur<3*60){
       if(warnEl){warnEl.style.background='rgba(217,64,64,.08)';warnEl.style.borderColor='rgba(217,64,64,.2)';warnEl.style.color='var(--red)';}
-      if(warnTxt) warnTxt.textContent='❌ Video '+(Math.floor(dur/60))+':'+(String(Math.floor(dur%60)).padStart(2,'0'))+' — Minimal 10 daqiqa kerak!';
+      if(warnTxt) warnTxt.textContent='❌ Video '+(Math.floor(dur/60))+':'+(String(Math.floor(dur%60)).padStart(2,'0'))+' — Minimal 3 daqiqa kerak!';
     } else {
       if(warnEl){warnEl.style.background='rgba(46,158,91,.08)';warnEl.style.borderColor='rgba(46,158,91,.2)';warnEl.style.color='var(--grn)';}
-      if(warnTxt) warnTxt.textContent='✅ Video '+(Math.floor(dur/60))+':'+(String(Math.floor(dur%60)).padStart(2,'0'))+' — Yaroqli (10+ daqiqa)';
+      if(warnTxt) warnTxt.textContent='✅ Video '+(Math.floor(dur/60))+':'+(String(Math.floor(dur%60)).padStart(2,'0'))+' — Yaroqli';
     }
     // Show poll section
     const pollSec=document.getElementById('vid-poll-section');
@@ -1583,5 +1739,45 @@ window.showBanBanner=showBanBanner;
 window.loadContactsScroll=loadContactsScroll;
 window.renderAdminContent=renderAdminContent;
 window.loadSavedPosts=loadSavedPosts;
+async function tgSendCode(){
+  const user=document.getElementById('tg-rs-user')?.value?.trim();
+  const phone=document.getElementById('tg-rs-phone')?.value?.trim();
+  const err=document.getElementById('tg-rs-err');
+  const btn=document.getElementById('tg-rs-send-btn');
+  if(err)err.textContent='';
+  if(!user||!phone){if(err)err.textContent='Username va telefon raqamni kiriting';return;}
+  if(!/^\+?\d{10,15}$/.test(phone)){if(err)err.textContent='Raqam formati: +998901234567';return;}
+  btn.disabled=true;btn.textContent='⏳ Yuborilmoqda...';
+  try{
+    const r=await API.tgSendCode(phone,user);
+    document.getElementById('tg-reset-step1').style.display='none';
+    document.getElementById('tg-reset-step2').style.display='block';
+  }catch(e){
+    if(err)err.textContent=e.message||'Xatolik';
+  }finally{btn.disabled=false;btn.textContent='📡 Kod yuborish';}
+}
+async function tgVerifyAndReset(){
+  const code=document.getElementById('tg-rs-code')?.value?.trim();
+  const newPass=document.getElementById('tg-rs-newpass')?.value;
+  const confirm=document.getElementById('tg-rs-confirmpass')?.value;
+  const err=document.getElementById('tg-rs-err2');
+  const btn=document.getElementById('tg-rs-verify-btn');
+  if(err)err.textContent='';
+  if(!code||code.length!==6){if(err)err.textContent='6 xonali kodni kiriting';return;}
+  if(!newPass||newPass.length<6){if(err)err.textContent='Parol kamida 6 ta belgi';return;}
+  if(newPass!==confirm){if(err)err.textContent='Parollar mos kelmaydi';return;}
+  btn.disabled=true;btn.textContent='⏳ Tasdiqlanmoqda...';
+  try{
+    const r=await API.tgVerifyCode(code,newPass);
+    document.getElementById('tg-reset-step2').style.display='none';
+    document.getElementById('tg-reset-done').style.display='block';
+  }catch(e){
+    if(err)err.textContent=e.message||'Xatolik';
+  }finally{btn.disabled=false;btn.textContent='✅ Tasdiqlash va saqlash';}
+}
+window.tgSendCode=tgSendCode; window.tgVerifyAndReset=tgVerifyAndReset;
+
 window.openCreateCom=openCreateCom; window.closeCreateCom=closeCreateCom; window.selectCCColor=selectCCColor; window.selectECColor=selectECColor; window.doCreateCom=doCreateCom;
 window.previewSubImg=previewSubImg; window.previewSubVid=previewSubVid; window.previewSubAud=previewSubAud;
+window.openComAdmins=openComAdmins; window.addComAdmin=addComAdmin; window.removeComAdmin=removeComAdmin;
+window.toggleComPrivate=toggleComPrivate; window.handleComRequest=handleComRequest;

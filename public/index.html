@@ -36,8 +36,28 @@
       <button class="btn btn-gold" style="width:100%" id="am-reg-btn" onclick="doAmReg()">Ro'yxatdan o'tish</button>
     </div>
     <div id="am-forgot-form" style="display:none">
-      <div class="form-row"><input class="inp" id="am-forgot-uname" placeholder="Username"></div>
-      <button class="btn btn-gold" style="width:100%" id="am-forgot-btn" onclick="doAmForgot()">Yuborish</button>
+      <!-- Step 1: Username -->
+      <div id="fg-step1">
+        <div style="font-size:13px;color:var(--tx3);margin-bottom:12px;text-align:center">Emailga tasdiqlash kodi yuboriladi</div>
+        <div class="form-row"><input class="inp" id="am-forgot-uname" placeholder="Username" onkeydown="if(event.key==='Enter')doAmForgot()"></div>
+        <button class="btn btn-gold" style="width:100%" id="am-forgot-btn" onclick="doAmForgot()">Kod yuborish</button>
+      </div>
+      <!-- Step 2: Code -->
+      <div id="fg-step2" style="display:none">
+        <div style="font-size:13px;color:var(--tx3);margin-bottom:12px;text-align:center">Emailga 6 xonali kod yuborildi: <strong id="fg-email-mask"></strong></div>
+        <div id="fg-code-err" class="auth-err"></div>
+        <div class="form-row"><input class="inp" id="fg-code" placeholder="6 xonali kod" maxlength="6" inputmode="numeric" style="text-align:center;font-size:20px;letter-spacing:6px" onkeydown="if(event.key==='Enter')doVerifyCode()"></div>
+        <button class="btn btn-gold" style="width:100%" id="fg-code-btn" onclick="doVerifyCode()">Tekshirish</button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="fgResendCode()">Qayta yuborish</button>
+      </div>
+      <!-- Step 3: New password -->
+      <div id="fg-step3" style="display:none">
+        <div style="font-size:13px;color:var(--tx3);margin-bottom:12px;text-align:center">Yangi parolni kiriting</div>
+        <div id="fg-pass-err" class="auth-err"></div>
+        <div class="form-row"><input class="inp" id="fg-new-pass" placeholder="Yangi parol (6+)" type="password"></div>
+        <div class="form-row"><input class="inp" id="fg-confirm-pass" placeholder="Tasdiqlash" type="password" onkeydown="if(event.key==='Enter')doResetByEmail()"></div>
+        <button class="btn btn-gold" style="width:100%" id="fg-reset-btn" onclick="doResetByEmail()">Saqlash</button>
+      </div>
     </div>
   </div>
 </div>
@@ -322,7 +342,7 @@
       <input type="file" id="sub-vid-file" accept="video/*" style="display:none" onchange="previewSubVid(this)">
       <div id="vid-warn" style="background:rgba(200,146,42,.08);border:1px solid var(--gold-bd);border-radius:var(--r);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gold)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span id="vid-warn-text">Video maksimal 10 daqiqa bo'lishi kerak</span>
+        <span id="vid-warn-text">Video kamida 3 daqiqa bo'lishi kerak</span>
       </div>
       <div onclick="document.getElementById('sub-vid-file').click()" style="border:2px dashed var(--border2);border-radius:var(--r-lg);padding:40px;text-align:center;cursor:pointer;color:var(--tx4);transition:border-color .2s">
         <div style="font-size:40px;margin-bottom:10px">🎬</div>
@@ -455,6 +475,20 @@
       </div>
       <input type="hidden" id="cc-color" value="#C8922A">
     </div>
+    <!-- Private toggle -->
+    <div class="form-row">
+      <label class="form-lbl">Jamoat turi</label>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:2px solid var(--gold);border-radius:var(--r);background:var(--gold-soft);flex:1;transition:all .18s" id="cc-pub-opt">
+          <input type="radio" name="cc-priv" value="0" checked style="accent-color:var(--gold)">
+          <div><div style="font-weight:700;font-size:13px">🌍 Ommaviy</div><div style="font-size:11px;color:var(--tx3);margin-top:2px">Hammaning ko'rishiga ruxsat</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:2px solid var(--border);border-radius:var(--r);background:var(--bg2);flex:1;transition:all .18s" id="cc-priv-opt">
+          <input type="radio" name="cc-priv" value="1" style="accent-color:var(--gold)">
+          <div><div style="font-weight:700;font-size:13px">🔒 Maxfiy</div><div style="font-size:11px;color:var(--tx3);margin-top:2px">Faqat a'zolar ko'radi</div></div>
+        </label>
+      </div>
+    </div>
     <div class="modal-acts">
       <button class="btn btn-ghost" onclick="closeCreateCom()">Bekor</button>
       <button class="btn btn-gold" id="cc-create-btn" onclick="doCreateCom()">Yaratish</button>
@@ -511,6 +545,34 @@
   </div>
 </div>
 
+<!-- COMMUNITY ADMIN MANAGEMENT -->
+<div id="com-admin-overlay" class="overlay">
+  <div class="modal" style="width:520px;max-height:92vh;overflow-y:auto">
+    <div class="modal-hd">
+      <div class="modal-title">👥 Jamoa boshqaruvi</div>
+      <button class="modal-close" onclick="document.getElementById('com-admin-overlay').classList.remove('open')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif">🔒 Jamoa turi</div>
+        <button class="btn btn-ghost" id="com-private-toggle" style="font-size:12px;padding:6px 12px"></button>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:8px">👑 Adminlar</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input class="inp" id="com-admin-username" placeholder="Username kiriting..." style="flex:1;font-size:13px;padding:8px 12px">
+        <button class="btn btn-gold" style="font-size:12px;padding:8px 14px" onclick="addComAdmin(window._curCom)">Qo'shish</button>
+      </div>
+      <div id="com-admins-list"></div>
+    </div>
+    <div>
+      <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:8px">📩 So'rovlar</div>
+      <div id="com-requests-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE POST -->
 <div id="del-overlay" class="overlay">
   <div class="modal" style="max-width:340px;text-align:center">
@@ -559,6 +621,29 @@
   🚫 Hisobingiz bloklangan. Faqat postlarni o'qishingiz mumkin. <span id="ban-reason-txt"></span>
 </div>
 
+<!-- REPORT MODAL -->
+<div id="report-overlay" class="overlay">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hd">
+      <div class="modal-title">🚩 Shikoyat</div>
+      <button class="modal-close" onclick="closeReport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div style="padding:0 0 8px;font-size:13px;color:var(--tx3)">Sababini tanlang yoki yozing:</div>
+    <div id="report-reasons" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Spam yoki reklama</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Haqorat yoki tahdid</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Noto'g'ri ma'lumot</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Noqonuniy kontent</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Boshqa sabab</button>
+    </div>
+    <div class="form-row"><textarea class="inp" id="report-reason-text" placeholder="Qo'shimcha izoh (ixtiyoriy)..." rows="3"></textarea></div>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeReport()">Bekor</button>
+      <button class="btn btn-gold" id="report-submit-btn" onclick="submitReport()">Yuborish</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- MOBILE BOTTOM NAV -->
@@ -598,6 +683,7 @@
 <script>
 // Color selection helpers
 function selectCCColor(color, el) {
+  if (typeof _ccColor !== 'undefined') _ccColor = color;
   document.getElementById('cc-color').value = color;
   document.querySelectorAll('#cc-overlay .color-opt').forEach(b => { b.style.transform='scale(1)'; b.style.border='3px solid transparent'; b.style.boxShadow='none'; });
   if (el) { el.style.transform='scale(1.15)'; el.style.border='3px solid white'; el.style.boxShadow='0 0 0 2px '+color; }

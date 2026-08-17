@@ -56,6 +56,7 @@ function buildPost(p, isDetail = false) {
       <button class="pa${p.saved?' saved':''}" id="sv-${p.id}" onclick="savePost('${p.id}',this)">${IC.save} ${p.saved?'Saqlangan':'Saqlash'}</button>
       <button class="pa" onclick="copyLink('${p.id}')">${IC.share} Ulashish</button>
       ${isMine ? `<button class="pa pa-del" onclick="confirmDelPost('${p.id}')">${IC.trash}</button>` : ''}
+      <button class="pa pa-report" onclick="openReport('${p.id}','post')">🚩 Shikoyat</button>
     </div>
   </div>
 </div>`;
@@ -390,7 +391,12 @@ async function delCmt(id) {
   try {
     await API.delCmt(id);
     const el = document.getElementById('cmt-'+id);
-    if (el) el.querySelector('.cmt-body').textContent = '[o\'chirildi]';
+    if (el) {
+      el.style.transition = 'all .25s ease';
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(-20px)';
+      setTimeout(() => el.remove(), 250);
+    }
   } catch(e) { toast(e.message); }
 }
 
@@ -427,12 +433,23 @@ function initFeedWS() {
     }
   });
   WS.on('del_post', d => { document.getElementById('pc-'+d.data?.id)?.remove(); });
+  WS.on('del_comment', d => {
+    const el = document.getElementById('cmt-'+d.data?.commentId);
+    if (el) {
+      el.style.transition = 'all .25s ease';
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(-20px)';
+      setTimeout(() => el.remove(), 250);
+    }
+  });
   WS.on('new_comment', d => {
     if (!d.data) return;
     const cc = document.getElementById('cmts-cnt');
     if (!cc) return;
     const existing = document.getElementById('cmt-'+d.data.comment?.id);
     if (!existing && d.data.comment) {
+      // Skip if this comment was just submitted by the current user
+      if (d.data.comment.user_id === window._me?.id) return;
       const el = document.createElement('div');
       el.innerHTML = buildCmtNode(d.data.comment, d.data.postId, d.data.comment.depth||0);
       const c = el.firstElementChild;
