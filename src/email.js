@@ -1,4 +1,6 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -8,7 +10,6 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER || 'mindhubteamm@gmail.com',
     pass: process.env.SMTP_PASS || 'kjvj wrbr wyqh tfti'
   },
-  family: 4,
   connectionTimeout: 15000,
   greetingTimeout: 10000,
   socketTimeout: 15000
