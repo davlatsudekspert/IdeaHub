@@ -150,10 +150,19 @@ async function openComAdmins(slug) {
     const adminsEl = document.getElementById('com-admins-list');
     const reqsEl = document.getElementById('com-requests-list');
     const privateBtn = document.getElementById('com-private-toggle');
+    const adminInput = document.getElementById('com-admin-username')?.parentElement;
     
     if (privateBtn) {
-      privateBtn.innerHTML = com.is_private ? '🔓 Ommaviyga o\'zgartirish' : '🔒 Maxfiyga o\'zgartirish';
+      privateBtn.innerHTML = com.is_private ? "Ommaviyga o'zgartirish" : "Maxfiyga o'zgartirish";
       privateBtn.onclick = () => toggleComPrivate(slug, !com.is_private);
+      privateBtn.style.display = com.is_owner ? '' : 'none';
+    }
+
+    if (adminInput) {
+      adminInput.style.display = com.is_owner ? '' : 'none';
+    }
+    if (privateBtn) {
+      privateBtn.style.display = com.is_owner ? '' : 'none';
     }
     
     if (adminsEl) {
@@ -318,7 +327,7 @@ function switchSubTab(t) {
   document.querySelectorAll('.sub-form').forEach(f=>f.classList.toggle('active',f.dataset.t===t));
   // Video tab: show duration warning
   if (t === 'video') {
-    const warn = document.getElementById('vid-duration-warn');
+    const warn = document.getElementById('vid-warn');
     if (warn) warn.style.display = 'flex';
   }
 }
@@ -1316,6 +1325,7 @@ async function loadSettings() {
         </div>
         <div class="form-row"><label class="form-lbl">Ism</label><input class="inp" id="st-name" value="${esc(u.name||'')}"></div>
         <div class="form-row"><label class="form-lbl">Bio</label><textarea class="inp" id="st-bio" rows="3">${esc(u.bio||'')}</textarea></div>
+        <div class="form-row"><label class="form-lbl">Telefon raqam (+998...)</label><input class="inp" id="st-phone" type="tel" placeholder="+998901234567" value="${esc(u.phone||'')}"></div>
         <button class="btn btn-gold" onclick="saveProfile()">Saqlash</button>
       </div>
       <div class="set-card">
@@ -1324,35 +1334,6 @@ async function loadSettings() {
         <div class="form-row"><label class="form-lbl">Yangi parol</label><input class="inp" id="cp-new" type="password" placeholder="••••••"></div>
         <div class="form-row"><label class="form-lbl">Tasdiqlash</label><input class="inp" id="cp-conf" type="password" placeholder="••••••"></div>
         <button class="btn btn-gold" onclick="doChpass()">O'zgartirish</button>
-      </div>
-      <div class="set-card">
-        <div class="set-title"><span class="set-title-ico">🤖</span> Parolni Tiklash (Telegram orqali)</div>
-        <div style="background:var(--gold-soft);border:1px solid var(--gold-bd);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--tx2);line-height:1.6">
-          <strong>Qanday ishlaydi?</strong><br>
-          1️⃣ Avval <a href="https://t.me/mind_hubbot" target="_blank" style="color:var(--gold);font-weight:700">@mind_hubbot</a> dan ro'yxatdan o'ting (telefon raqamingiz bilan)<br>
-          2️⃣ Quyidagi maydonlarga username va telefon raqamingizni kiriting<br>
-          3️⃣ Telegramga 6 xonali kod keladi<br>
-          4️⃣ Kodni kiriting va yangi parol o'rnating
-        </div>
-        <div id="tg-reset-step1">
-          <div class="form-row"><label class="form-lbl">Username</label><input class="inp" id="tg-rs-user" placeholder="${esc(u.username||'')}" value="${esc(u.username||'')}"></div>
-          <div class="form-row"><label class="form-lbl">Telegram raqam (+998...)</label><input class="inp" id="tg-rs-phone" placeholder="+998901234567" type="tel"></div>
-          <div id="tg-rs-err" class="auth-err"></div>
-          <button class="btn btn-gold" style="width:100%" id="tg-rs-send-btn" onclick="tgSendCode()">📡 Kod yuborish</button>
-        </div>
-        <div id="tg-reset-step2" style="display:none">
-          <div style="font-size:13px;color:var(--tx3);margin-bottom:10px">Telegramga yuborilgan 6 xonali kodni kiriting:</div>
-          <div class="form-row"><label class="form-lbl">Tasdiqlash kodi</label><input class="inp" id="tg-rs-code" placeholder="123456" maxlength="6" style="font-size:20px;text-align:center;letter-spacing:8px;font-weight:700"></div>
-          <div class="form-row"><label class="form-lbl">Yangi parol (6+ belgi)</label><input class="inp" id="tg-rs-newpass" type="password" placeholder="••••••"></div>
-          <div class="form-row"><label class="form-lbl">Parolni tasdiqlash</label><input class="inp" id="tg-rs-confirmpass" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')tgVerifyAndReset()"></div>
-          <div id="tg-rs-err2" class="auth-err"></div>
-          <button class="btn btn-gold" style="width:100%" id="tg-rs-verify-btn" onclick="tgVerifyAndReset()">✅ Tasdiqlash va saqlash</button>
-        </div>
-        <div id="tg-reset-done" style="display:none;text-align:center;padding:16px 0">
-          <div style="font-size:32px;margin-bottom:8px">✅</div>
-          <div style="font-weight:700;color:var(--grn)">Parol muvaffaqiyatli yangilandi!</div>
-          <div style="font-size:13px;color:var(--tx3);margin-top:6px">Endi yangi parol bilan kirishingiz mumkin</div>
-        </div>
       </div>
       <div class="set-card">
         <div class="set-title"><span class="set-title-ico">🔔</span> Bildirishnomalar</div>
@@ -1382,7 +1363,16 @@ async function loadSettings() {
 }
 
 async function saveProfile(){
-  try{const u=await API.updMe(document.getElementById('st-name').value,document.getElementById('st-bio').value);window._me={...window._me,...u};syncTopbar(window._me);toast('Profil saqlandi');}catch(e){toast(e.message);}
+  try{
+    const name=document.getElementById('st-name').value;
+    const bio=document.getElementById('st-bio').value;
+    const phone=document.getElementById('st-phone')?.value?.trim()||'';
+    const u=await API.updMe(name,bio);
+    if(phone){
+      try{await API.updPhone(phone);}catch(e){console.error('Phone save:',e);}
+    }
+    window._me={...window._me,...u,phone};syncTopbar(window._me);toast('Profil saqlandi');
+  }catch(e){toast(e.message);}
 }
 async function doChpass(){
   const o=document.getElementById('cp-old').value,n=document.getElementById('cp-new').value,c=document.getElementById('cp-conf').value;
@@ -1739,43 +1729,6 @@ window.showBanBanner=showBanBanner;
 window.loadContactsScroll=loadContactsScroll;
 window.renderAdminContent=renderAdminContent;
 window.loadSavedPosts=loadSavedPosts;
-async function tgSendCode(){
-  const user=document.getElementById('tg-rs-user')?.value?.trim();
-  const phone=document.getElementById('tg-rs-phone')?.value?.trim();
-  const err=document.getElementById('tg-rs-err');
-  const btn=document.getElementById('tg-rs-send-btn');
-  if(err)err.textContent='';
-  if(!user||!phone){if(err)err.textContent='Username va telefon raqamni kiriting';return;}
-  if(!/^\+?\d{10,15}$/.test(phone)){if(err)err.textContent='Raqam formati: +998901234567';return;}
-  btn.disabled=true;btn.textContent='⏳ Yuborilmoqda...';
-  try{
-    const r=await API.tgSendCode(phone,user);
-    document.getElementById('tg-reset-step1').style.display='none';
-    document.getElementById('tg-reset-step2').style.display='block';
-  }catch(e){
-    if(err)err.textContent=e.message||'Xatolik';
-  }finally{btn.disabled=false;btn.textContent='📡 Kod yuborish';}
-}
-async function tgVerifyAndReset(){
-  const code=document.getElementById('tg-rs-code')?.value?.trim();
-  const newPass=document.getElementById('tg-rs-newpass')?.value;
-  const confirm=document.getElementById('tg-rs-confirmpass')?.value;
-  const err=document.getElementById('tg-rs-err2');
-  const btn=document.getElementById('tg-rs-verify-btn');
-  if(err)err.textContent='';
-  if(!code||code.length!==6){if(err)err.textContent='6 xonali kodni kiriting';return;}
-  if(!newPass||newPass.length<6){if(err)err.textContent='Parol kamida 6 ta belgi';return;}
-  if(newPass!==confirm){if(err)err.textContent='Parollar mos kelmaydi';return;}
-  btn.disabled=true;btn.textContent='⏳ Tasdiqlanmoqda...';
-  try{
-    const r=await API.tgVerifyCode(code,newPass);
-    document.getElementById('tg-reset-step2').style.display='none';
-    document.getElementById('tg-reset-done').style.display='block';
-  }catch(e){
-    if(err)err.textContent=e.message||'Xatolik';
-  }finally{btn.disabled=false;btn.textContent='✅ Tasdiqlash va saqlash';}
-}
-window.tgSendCode=tgSendCode; window.tgVerifyAndReset=tgVerifyAndReset;
 
 window.openCreateCom=openCreateCom; window.closeCreateCom=closeCreateCom; window.selectCCColor=selectCCColor; window.selectECColor=selectECColor; window.doCreateCom=doCreateCom;
 window.previewSubImg=previewSubImg; window.previewSubVid=previewSubVid; window.previewSubAud=previewSubAud;

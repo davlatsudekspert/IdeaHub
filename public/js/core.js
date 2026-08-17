@@ -100,8 +100,7 @@ const API = {
   getCom:   (slug)     => api('GET','/communities/'+slug),
   topComs:  ()         => api('GET','/communities?sort=top'),
   popularComs:()        => api('GET','/communities/popular'),
-  tgSendCode:(phone)=> api('POST','/auth/tg-send-code',{phone}),
-  tgVerifyCode:(phone,code,p)=> api('POST','/auth/tg-verify-code',{phone,code,new_pass:p}),
+
   mineComs: ()         => { const u=window._me; return u?api('GET','/communities?mine=1').catch(()=>api('GET','/communities')):Promise.resolve([]); },
   joinCom:  (slug)     => api('POST','/communities/'+slug+'/join'),
   updateCom:(slug,fd,isForm) => api('PUT','/communities/'+slug,fd,isForm),
