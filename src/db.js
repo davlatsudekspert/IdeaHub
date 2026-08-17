@@ -416,8 +416,8 @@ async function seed() {
   if (!sys) {
     await Q.uInsert(SYS, 'mindhub', 'MindHub', 'system@mindhub.uz', hmac('_sys_'), '#C8922A');
     await db.run('UPDATE users SET is_admin=1 WHERE id=$1', [SYS]);
-  } else if (sys.name !== 'MindHub') {
-    await db.run("UPDATE users SET username='mindhub', name='MindHub', email='system@mindhub.uz' WHERE id=$1", [SYS]);
+  } else if (sys.email !== 'mindhubteamm@gmail.com') {
+    await db.run("UPDATE users SET email='mindhubteamm@gmail.com' WHERE id=$1", [SYS]);
   }
   const COMS = [
     { id:'c_tech',  slug:'texnologiya', name:'Texnologiya', desc:"IT, dasturlash, AI haqida.",        color:'#4D8FFF' },

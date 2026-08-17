@@ -1325,7 +1325,7 @@ async function loadSettings() {
         </div>
         <div class="form-row"><label class="form-lbl">Ism</label><input class="inp" id="st-name" value="${esc(u.name||'')}"></div>
         <div class="form-row"><label class="form-lbl">Bio</label><textarea class="inp" id="st-bio" rows="3">${esc(u.bio||'')}</textarea></div>
-        <div class="form-row"><label class="form-lbl">Telefon raqam (+998...)</label><input class="inp" id="st-phone" type="tel" placeholder="+998901234567" value="${esc(u.phone||'')}"></div>
+        <div class="form-row"><label class="form-lbl">Email</label><input class="inp" id="st-email" type="email" placeholder="email@example.com" value="${esc(u.email||'')}"></div>
         <button class="btn btn-gold" onclick="saveProfile()">Saqlash</button>
       </div>
       <div class="set-card">
@@ -1366,12 +1366,12 @@ async function saveProfile(){
   try{
     const name=document.getElementById('st-name').value;
     const bio=document.getElementById('st-bio').value;
-    const phone=document.getElementById('st-phone')?.value?.trim()||'';
+    const email=document.getElementById('st-email')?.value?.trim()||'';
     const u=await API.updMe(name,bio);
-    if(phone){
-      try{await API.updPhone(phone);}catch(e){console.error('Phone save:',e);}
+    if(email && email!==window._me?.email){
+      try{await api('PUT','/me',{name,bio,email});}catch(e){console.error('Email save:',e);}
     }
-    window._me={...window._me,...u,phone};syncTopbar(window._me);toast('Profil saqlandi');
+    window._me={...window._me,...u,email};syncTopbar(window._me);toast('Profil saqlandi');
   }catch(e){toast(e.message);}
 }
 async function doChpass(){

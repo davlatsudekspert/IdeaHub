@@ -261,6 +261,7 @@ async function route(req, res) {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
     const b = await readBody(req);
     await Q.uUpdProf((b.name || '').trim(), (b.bio || '').trim(), u2);
+    if (b.email) await db.run('UPDATE users SET email=$1 WHERE id=$2', [b.email.trim().toLowerCase(), u2]);
     return json(res, await Q.uById(u2));
   }
   if (p === '/api/me/phone' && m === 'PUT') {
