@@ -1,6 +1,19 @@
 'use strict';
 
 /* ═══ TELEGRAM LOGIN ═══ */
+let _tgWidgetLoaded = false;
+function loadTgWidget(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || el.querySelector('script')) return;
+  const s = document.createElement('script');
+  s.src = 'https://telegram.org/js/telegram-widget.js?22';
+  s.setAttribute('data-telegram-login', 'mind_hubbot');
+  s.setAttribute('data-size', 'large');
+  s.setAttribute('data-onauth', 'onTelegramAuth(user)');
+  s.setAttribute('data-request-access', 'write');
+  s.async = true;
+  el.appendChild(s);
+}
 async function onTelegramAuth(user) {
   const err = document.getElementById('am-err');
   try {
@@ -22,7 +35,7 @@ function switchAmTab(t){
   document.getElementById('am-reg-form').style.display=t==='register'?'block':'none';
   document.getElementById('am-forgot-form').style.display=t==='forgot'?'block':'none';
   document.getElementById('am-err').classList.remove('on');
-  if(t==='forgot'&&typeof resetForgotForm==='function') resetForgotForm();
+  if(t==='forgot') loadTgWidget('tg-forgot-container');
 }
 function requireAuth(cb){ if(window._me){cb&&cb();return true;}showAuthModal();return false;}
 
