@@ -228,13 +228,33 @@ async function route(req, res) {
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = Math.floor(Date.now() / 1000) + 600;
       await Q.vcInsert(user.id, code, expiresAt);
+      let sent = false;
       try {
         const { sendVerifyCode } = require('./email');
         await sendVerifyCode(user.email, code, user.username);
+        sent = true;
       } catch (e) {
-        console.error('SMTP xatoligi:', e.message, e.code);
+        console.error('Email xatoligi:', e.message);
       }
-      return json(res, { ok: true, email: user.email.replace(/(.{2}).*(@.*)/, '$1***$2') });
+      if (!sent) {
+        try {
+          const u2 = await db.get('SELECT tg_chat_id FROM users WHERE id=$1', [user.id]);
+          if (u2 && u2.tg_chat_id) {
+            const https = require('https');
+            const botToken = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
+            const msg = `🔐 MindHub parol tiklash kodi: ${code}\n\nBu kod 10 daqiqa davomida amal qiladi.`;
+            await new Promise((resolve) => {
+              const req2 = https.request(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }
+              }, (resp) => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => { sent = true; resolve(); }); });
+              req2.on('error', (e) => { console.error('TG send error:', e.message); resolve(); });
+              req2.write(JSON.stringify({ chat_id: u2.tg_chat_id, text: msg }));
+              req2.end();
+            });
+          }
+        } catch (e) { console.error('TG fallback error:', e.message); }
+      }
+      return json(res, { ok: true, email: user.email.replace(/(.{2}).*(@.*)/, '$1***$2'), sent });
     } catch (e) {
       console.error('send-code xatoligi:', e.message, e.stack);
       return json(res, { error: 'Xatolik: ' + e.message }, 500);
