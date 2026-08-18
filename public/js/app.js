@@ -1,5 +1,16 @@
 'use strict';
 
+/* ═══ TELEGRAM LOGIN ═══ */
+async function onTelegramAuth(user) {
+  const err = document.getElementById('am-err');
+  try {
+    const d = await api('POST', '/auth/telegram-login', user);
+    tokSave(d.token); Tok.set(d.token); closeAuthModal(); await boot(d.user);
+  } catch (e) {
+    if (err) { err.textContent = e.message; err.classList.add('on'); }
+  }
+}
+
 /* ═══ AUTH MODAL ═══ */
 let _authTab='login';
 function showAuthModal(){ document.getElementById('auth-modal').classList.add('open'); }

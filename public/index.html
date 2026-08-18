@@ -27,6 +27,12 @@
       <div class="form-row"><input class="inp" id="am-uname" placeholder="Username / Email" autocomplete="username"></div>
       <div class="form-row"><input class="inp" id="am-pass" placeholder="Parol" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAmLogin()"></div>
       <button class="btn btn-gold" style="width:100%" id="am-login-btn" onclick="doAmLogin()">Kirish</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:12px;color:var(--tx3)">yoki</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div id="tg-login-container" style="display:flex;justify-content:center"></div>
     </div>
     <div id="am-reg-form" style="display:none">
       <div class="form-row"><input class="inp" id="am-reg-name" placeholder="Ismingiz"></div>
@@ -680,6 +686,7 @@
 <script src="/js/posts.js"></script>
 <script src="/js/features.js"></script>
 <script src="/js/app.js"></script>
+<script src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="mind_hubbot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write" async></script>
 <script>
 // Color selection helpers
 function selectCCColor(color, el) {

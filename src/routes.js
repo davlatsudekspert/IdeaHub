@@ -1,9 +1,10 @@
 'use strict';
+const crypto = require('crypto');
 const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
 const { Q, hmac, db } = require('./db');
-const { verifyToken, makeToken, uid } = require('./helpers');
+const { verifyToken, makeToken, uid, randColor } = require('./helpers');
 const ws = require('./ws');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
@@ -164,6 +165,31 @@ async function route(req, res) {
   const m = req.method;
 
   /* ══ AUTH ══ */
+  if (p === '/api/auth/telegram-login' && m === 'POST') {
+    const b = await readBody(req);
+    const { id, first_name, username, photo_url, auth_date, hash } = b;
+    if (!id || !auth_date || !hash) return json(res, { error: "Ma'lumotlar to'liq emas" }, 400);
+    const BOT_TOKEN = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
+    const dataCheckString = [`auth_date=${auth_date}`, `first_name=${first_name || ''}`, `id=${id}`, `photo_url=${photo_url || ''}`, `username=${username || ''}`].join('\n');
+    const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    if (computedHash !== hash) return json(res, { error: "Tekshiruvdan o'tmadi" }, 403);
+    const age = Math.floor(Date.now() / 1000) - Number(auth_date);
+    if (age > 86400) return json(res, { error: "Sessiya muddati tugagan" }, 403);
+    const tgId = String(id);
+    let user = await Q.uByTgId(tgId);
+    if (!user) {
+      const uname = (username || `user${id}`).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) || `tg_${id}`;
+      const existing = await Q.uByUsername(uname);
+      const finalName = existing ? `${uname}_${Date.now()}` : uname;
+      const uid2 = uid();
+      const email = `tg_${id}@mindhub.local`;
+      await Q.uInsert(uid2, finalName, first_name || 'Telegram User', email, crypto.randomBytes(32).toString('hex'), randColor());
+      await Q.uSetTgId(tgId, uid2);
+      user = await Q.uById(uid2);
+    }
+    return json(res, { token: makeToken(user.id), user: await Q.uById(user.id) });
+  }
   if (p === '/api/auth/register' && m === 'POST') {
     const b = await readBody(req);
     const { username, name, email, password } = b;

@@ -203,6 +203,7 @@ const SCHEMA = `
 
   ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_chat_id TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_id TEXT;
 
   CREATE TABLE IF NOT EXISTS community_roles (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -247,6 +248,8 @@ const Q = {
   uUpdPass:   (pass, id) => db.run('UPDATE users SET pass=$1 WHERE id=$2', [pass, id]),
   uSetPhone:  (phone, id) => db.run('UPDATE users SET phone=$1 WHERE id=$2', [phone, id]),
   uSetTgChat: (chat_id, id) => db.run('UPDATE users SET tg_chat_id=$1 WHERE id=$2', [chat_id, id]),
+  uSetTgId:   (tg_id, id) => db.run('UPDATE users SET tg_id=$1 WHERE id=$2', [tg_id, id]),
+  uByTgId:    (tg_id) => db.get('SELECT id,username,name,email FROM users WHERE tg_id=$1', [tg_id]),
   uUpdAv:     (avatar, id) => db.run('UPDATE users SET avatar=$1 WHERE id=$2', [avatar, id]),
   uUpdBanner: (banner, id) => db.run('UPDATE users SET banner=$1 WHERE id=$2', [banner, id]),
   uKarma:     (delta, id) => db.run('UPDATE users SET karma=karma+$1 WHERE id=$2', [delta, id]),
