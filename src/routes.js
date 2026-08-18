@@ -218,21 +218,21 @@ async function route(req, res) {
 
   /* ══ EMAIL CODE RESET ══ */
   if (p === '/api/auth/send-code' && m === 'POST') {
-    const b = await readBody(req);
-    const uname = (b.username || '').trim().toLowerCase();
-    if (!uname) return json(res, { error: 'Username kiriting' }, 400);
-    await Q.vcClean();
-    const user = await Q.uByUsername(uname);
-    if (!user || !user.email) return json(res, { error: 'Foydalanuvchi topilmadi' }, 404);
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = Math.floor(Date.now() / 1000) + 600;
-    await Q.vcInsert(user.id, code, expiresAt);
     try {
+      const b = await readBody(req);
+      const uname = (b.username || '').trim().toLowerCase();
+      if (!uname) return json(res, { error: 'Username kiriting' }, 400);
+      await Q.vcClean();
+      const user = await Q.uByUsername(uname);
+      if (!user || !user.email) return json(res, { error: 'Foydalanuvchi topilmadi' }, 404);
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = Math.floor(Date.now() / 1000) + 600;
+      await Q.vcInsert(user.id, code, expiresAt);
       const { sendVerifyCode } = require('./email');
       await sendVerifyCode(user.email, code, user.username);
       return json(res, { ok: true, email: user.email.replace(/(.{2}).*(@.*)/, '$1***$2') });
     } catch (e) {
-      console.error('Email yuborish xatoligi:', e.message);
+      console.error('send-code xatoligi:', e.message);
       return json(res, { error: 'Email yuborishda xatolik' }, 500);
     }
   }
