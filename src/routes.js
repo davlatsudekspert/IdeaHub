@@ -1002,18 +1002,15 @@ async function route(req, res) {
   /* ══ TELEGRAM PASSWORD RESET ══ */
   if (p === '/api/auth/tg-send-code' && m === 'POST') {
     const b = await readBody(req);
-    const phone = (b.phone || '').trim();
-    if (!phone) return json(res, { error: 'Telefon raqam kerak' }, 400);
-    // Find user by phone — check users table directly
-    const user = await db.get('SELECT id, username, name, phone, tg_chat_id FROM users WHERE phone=$1', [phone]);
-    if (!user) return json(res, { error: 'Bu raqamga bog\'langan akkaunt topilmadi' }, 404);
-    // Clean old codes
+    const email = (b.email || '').trim().toLowerCase();
+    if (!email) return json(res, { error: 'Email kerak' }, 400);
+    const user = await db.get('SELECT id, username, name, email, tg_chat_id FROM users WHERE lower(email)=lower($1)', [email]);
+    if (!user) return json(res, { error: 'Bu emailga bog\'langan akkaunt topilmadi' }, 404);
     await Q.tgCodeClean();
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const codeId = uid();
     const expiresAt = Math.floor(Date.now()/1000) + 600;
-    await Q.tgCodeInsert(codeId, user.id, phone, code, expiresAt);
-    // Send code via Telegram bot if chat_id is linked
+    await Q.tgCodeInsert(codeId, user.id, email, code, expiresAt);
     if (user.tg_chat_id) {
       const botToken = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
       const telegramMsg = `🔐 MindHub parol tiklash kodi: ${code}\n\nBu kod 10 daqiqa davomida amal qiladi.\nAgar siz bu so'rovni yubormagan bo'lsangiz, xabarni e'tiborsiz qoldiring.`;
@@ -1037,11 +1034,11 @@ async function route(req, res) {
   }
   if (p === '/api/auth/tg-verify-code' && m === 'POST') {
     const b = await readBody(req);
-    const phone = (b.phone || '').trim();
+    const email = (b.email || '').trim().toLowerCase();
     const code = (b.code || '').trim();
     const newPass = (b.new_pass || '').trim();
-    if (!phone || !code) return json(res, { error: 'Telefon raqam va kod kerak' }, 400);
-    const user = await db.get('SELECT id FROM users WHERE phone=$1', [phone]);
+    if (!email || !code) return json(res, { error: 'Email va kod kerak' }, 400);
+    const user = await db.get('SELECT id FROM users WHERE lower(email)=lower($1)', [email]);
     if (!user) return json(res, { error: 'Foydalanuvchi topilmadi' }, 404);
     const codeRow = await Q.tgCodeGet(user.id, code);
     if (!codeRow) return json(res, { error: "Noto'g'ri kod yoki muddati tugagan" }, 400);
