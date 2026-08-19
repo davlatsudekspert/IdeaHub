@@ -20,19 +20,12 @@
     <div style="display:flex;gap:4px;margin-bottom:18px;background:var(--bg2);border-radius:var(--r);padding:3px">
       <button class="auth-tab active" data-t="login" onclick="switchAmTab('login')" style="flex:1;padding:7px;border-radius:6px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:none;color:inherit;transition:all .15s">Kirish</button>
       <button class="auth-tab" data-t="register" onclick="switchAmTab('register')" style="flex:1;padding:7px;border-radius:6px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:none;color:inherit;transition:all .15s">Ro'yxat</button>
-      <button class="auth-tab" data-t="forgot" onclick="switchAmTab('forgot')" style="flex:1;padding:7px;border-radius:6px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:none;color:inherit;transition:all .15s">Parol</button>
     </div>
     <div id="am-err" class="auth-err"></div>
     <div id="am-login-form">
       <div class="form-row"><input class="inp" id="am-uname" placeholder="Username / Email" autocomplete="username"></div>
       <div class="form-row"><input class="inp" id="am-pass" placeholder="Parol" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAmLogin()"></div>
       <button class="btn btn-gold" style="width:100%" id="am-login-btn" onclick="doAmLogin()">Kirish</button>
-      <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-        <span style="font-size:12px;color:var(--tx3)">yoki</span>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-      </div>
-      <div id="tg-login-container" style="display:flex;justify-content:center"></div>
     </div>
     <div id="am-tg-profile-form" style="display:none">
       <div style="text-align:center;margin-bottom:16px">
