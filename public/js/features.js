@@ -380,7 +380,6 @@ async function doSubmitPost() {
       const fv = document.getElementById('sub-vid-file');
       if (!fv?.files?.[0]) { toast("Video fayl tanlang"); return; }
       if (fv.files[0].size > 500*1024*1024) { toast("Video 500MB dan oshmasin"); return; }
-      // Check video duration (min 3 minutes)
       const vidFile = fv.files[0];
       const vidUrl = URL.createObjectURL(vidFile);
       const dur = await new Promise((resolve) => {
@@ -390,8 +389,8 @@ async function doSubmitPost() {
         v.onerror = () => { URL.revokeObjectURL(vidUrl); resolve(0); };
         v.src = vidUrl;
       });
-      if (dur && dur < 3*60) {
-        toast("Video kamida 3 daqiqa bo'lishi kerak!");
+      if (dur && dur > 10*60) {
+        toast("Video ko'pi bilan 10 daqiqa bo'lishi kerak!");
         return;
       }
       const fd = new FormData();
@@ -572,7 +571,7 @@ async function loadNotifs() {
   try {
     const notifs = await API.notifications();
     el.innerHTML = '';
-    if (!notifs.length) { el.innerHTML=emptyEl('bell',"Hali bildirishnomalar yo'q"); return; }
+      if (!notifs.length) { el.innerHTML=emptyEl('bell',"Hozircha bildirishnomalar yo'q"); return; }
     notifs.forEach(n => {
       const dv=document.createElement('div');
       dv.className='notif'+(n.is_read?'':' unread');
@@ -636,7 +635,7 @@ async function loadConvos() {
     if (!convos.length) {
       el.innerHTML=`<div style="padding:24px 16px;text-align:center;color:var(--tx4)">
         <div style="font-size:32px;margin-bottom:8px;opacity:.5">💬</div>
-        <div style="font-size:13px">Hali xabarlar yo'q</div>
+        <div style="font-size:13px">Hozircha xabarlar yo'q. Yangi suhbatni foydalanuvchi profilidan boshlang.</div>
       </div>`; return;
     }
     convos.forEach((cv,i) => {
@@ -1528,9 +1527,10 @@ async function adminBanUser(id,isBanned){
 }
 async function confirmBan(){
   const reason=(document.getElementById('ban-reason-inp').value||'').trim();
+  const duration=parseInt(document.getElementById('ban-duration').value)||0;
   if(!reason){toast('Sabab kiriting');return;}
   document.getElementById('ban-modal').classList.remove('open');
-  try{await API.adminAction({target_id:_pendingBanId,action:'ban',reason});_pendingBanId=null;toast('Foydalanuvchi bloklandi');loadAdmin();}catch(e){toast(e.message);}
+  try{await API.adminAction({target_id:_pendingBanId,action:'ban',reason,duration});_pendingBanId=null;toast('Foydalanuvchi bloklandi');loadAdmin();}catch(e){toast(e.message);}
 }
 function closeBanModal(){document.getElementById('ban-modal').classList.remove('open');_pendingBanId=null;}
 async function adminAction(id,action){try{await API.adminAction({target_id:id,action});toast('Yangilandi');loadAdmin();}catch(e){toast(e.message);}}
@@ -1660,7 +1660,7 @@ function loadContactsScroll(convos) {
 async function loadSavedPosts(){
   const el=document.getElementById('saved-cnt'); if(!el) return;
   el.innerHTML=spinner();
-  try{const posts=await API.savedPosts();el.innerHTML='';if(!posts.length){el.innerHTML=emptyEl('save',"Hali saqlangan postlar yo'q");return;}posts.forEach((p,i)=>{const d=document.createElement('div');d.innerHTML=buildPost(p);const c=d.firstElementChild;c.style.animationDelay=(i*.04)+'s';el.appendChild(c);});}catch(e){el.innerHTML=emptyEl('close','Xatolik',e.message);}
+  try{const posts=await API.savedPosts();el.innerHTML='';if(!posts.length){      el.innerHTML=emptyEl('save',"Hozircha hech narsa saqlanmagan. Postdagi ⭐ tugmasini bosing.");return;}posts.forEach((p,i)=>{const d=document.createElement('div');d.innerHTML=buildPost(p);const c=d.firstElementChild;c.style.animationDelay=(i*.04)+'s';el.appendChild(c);});}catch(e){el.innerHTML=emptyEl('close','Xatolik',e.message);}
 }
 
 /* ═══ CREATE COMMUNITY ═══ */
@@ -1724,9 +1724,9 @@ function previewSubVid(inp){
     const dur=vid.duration;
     const warnEl=document.getElementById('vid-warn');
     const warnTxt=document.getElementById('vid-warn-text');
-    if(dur<3*60){
+    if(dur>10*60){
       if(warnEl){warnEl.style.background='rgba(217,64,64,.08)';warnEl.style.borderColor='rgba(217,64,64,.2)';warnEl.style.color='var(--red)';}
-      if(warnTxt) warnTxt.textContent='❌ Video '+(Math.floor(dur/60))+':'+(String(Math.floor(dur%60)).padStart(2,'0'))+' — Minimal 3 daqiqa kerak!';
+      if(warnTxt) warnTxt.textContent='❌ Video '+(Math.floor(dur/60))+':'+(String(Math.floor(dur%60)).padStart(2,'0'))+' — Ko\'pi bilan 10 daqiqa!';
     } else {
       if(warnEl){warnEl.style.background='rgba(46,158,91,.08)';warnEl.style.borderColor='rgba(46,158,91,.2)';warnEl.style.color='var(--grn)';}
       if(warnTxt) warnTxt.textContent='✅ Video '+(Math.floor(dur/60))+':'+(String(Math.floor(dur%60)).padStart(2,'0'))+' — Yaroqli';

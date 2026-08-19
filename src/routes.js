@@ -28,7 +28,14 @@ async function getAuthNotBanned(req, res) {
   if (!u2) { json(res, { error: 'Unauthorized' }, 401); return null; }
   const user = await Q.uById(u2);
   if (!user) { json(res, { error: 'Topilmadi' }, 404); return null; }
-  if (user.is_banned) { json(res, { error: `Hisob bloklangan: ${user.ban_reason || ''}`, banned: true }, 403); return null; }
+  if (user.is_banned) {
+    if (user.ban_expires_at && Math.floor(Date.now()/1000) > user.ban_expires_at) {
+      await Q.uUnban(u2);
+    } else {
+      const expText = user.ban_expires_at ? ` (${new Date(user.ban_expires_at*1000).toLocaleDateString('uz-UZ')} gacha)` : '';
+      json(res, { error: `Hisob bloklangan: ${user.ban_reason || ''}${expText}`, banned: true }, 403); return null;
+    }
+  }
   return u2;
 }
 async function readBody(req) {
@@ -219,7 +226,10 @@ async function route(req, res) {
     if (!username || !password) return json(res, { error: 'Login va parolni kiriting' }, 400);
     const user = await Q.uByLogin(username);
     if (!user || user.pass !== hmac(password)) return json(res, { error: "Noto'g'ri login yoki parol" }, 401);
-    if (user.is_banned) return json(res, { error: `Hisob bloklangan: ${user.ban_reason || ''}` }, 403);
+    if (user.is_banned) {
+      if (user.ban_expires_at && Math.floor(Date.now()/1000) > user.ban_expires_at) { await Q.uUnban(user.id); }
+      else { const expText = user.ban_expires_at ? ` (${new Date(user.ban_expires_at*1000).toLocaleDateString('uz-UZ')} gacha)` : ''; return json(res, { error: `Hisob bloklangan: ${user.ban_reason || ''}${expText}` }, 403); }
+    }
     return json(res, { token: makeToken(user.id), user: await Q.uById(user.id) });
   }
   if (p === '/api/auth/forgot' && m === 'POST') {
@@ -669,14 +679,14 @@ async function route(req, res) {
       pollQuestion = fields.poll_question || null;
       pollOptions  = fields.poll_options  ? JSON.parse(fields.poll_options) : null;
       pollDays     = parseInt(fields.poll_days) || 3;
-      if (files.image) { image = saveFile(files.image,['.jpg','.jpeg','.png','.gif','.webp']); type='image'; }
+      if (files.image) { image = saveFile(files.image,['.jpg','.jpeg','.png','.gif','.webp','.heic']); type='image'; }
       if (files.video) {
         const vfile = files.video;
         // Check size limit: 500MB
         if (vfile.data.length > 500*1024*1024) return json(res, { error: "Video 500MB dan oshmasin" }, 400);
         video = saveFile(files.video,['.mp4','.webm','.mov','.avi','.mkv']); type='video';
       }
-      if (files.audio) { audio = saveFile(files.audio,['.mp3','.wav','.ogg','.m4a','.webm']); type='audio'; }
+      if (files.audio) { audio = saveFile(files.audio,['.mp3','.wav','.ogg','.m4a','.aac','.webm']); type='audio'; }
     } else {
       const b  = await readBody(req);
       title    = (b.title    || '').trim();
@@ -1022,7 +1032,11 @@ async function route(req, res) {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
     const user = await Q.uById(u2); if (!user?.is_admin) return json(res, { error: "Ruxsat yo'q" }, 403);
     const b    = await readBody(req);
-    if (b.action === 'ban')      await Q.uBan(b.reason||'', b.target_id);
+    if (b.action === 'ban') {
+      const dur = parseInt(b.duration) || 0;
+      const expiresAt = dur > 0 ? Math.floor(Date.now()/1000) + dur * 86400 : null;
+      await Q.uBan(b.reason||'', b.target_id, expiresAt);
+    }
     if (b.action === 'unban')    await Q.uUnban(b.target_id);
     if (b.action === 'makeAdmin')await Q.uMakeAdmin(b.target_id);
     if (b.action === 'remAdmin') await Q.uRemAdmin(b.target_id);

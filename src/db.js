@@ -204,6 +204,7 @@ const SCHEMA = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_chat_id TEXT;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_id TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_expires_at INTEGER;
 
   CREATE TABLE IF NOT EXISTS community_roles (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -234,7 +235,7 @@ const SCHEMA = `
 
 const Q = {
   /* users */
-  uById:      (id) => db.get('SELECT id,username,name,email,color,bio,avatar,banner,karma,followers,is_admin,is_banned,ban_reason,created_at,phone FROM users WHERE id=$1', [id]),
+  uById:      (id) => db.get('SELECT id,username,name,email,color,bio,avatar,banner,karma,followers,is_admin,is_banned,ban_reason,ban_expires_at,created_at,phone FROM users WHERE id=$1', [id]),
   uByIdFull:  (id) => db.get('SELECT * FROM users WHERE id=$1', [id]),
   uByLogin:   (u) => db.get('SELECT * FROM users WHERE lower(username)=lower($1) OR lower(email)=lower($1)', [u]),
   uBySlug:    (param) => db.get('SELECT id,username,name,color,bio,avatar,banner,karma,followers,is_admin,is_banned,created_at FROM users WHERE lower(username)=lower($1) OR id=$1', [param]),
@@ -255,8 +256,8 @@ const Q = {
   uKarma:     (delta, id) => db.run('UPDATE users SET karma=karma+$1 WHERE id=$2', [delta, id]),
   uFollowers: (id) => db.run('UPDATE users SET followers=(SELECT COUNT(*)::int FROM follows WHERE following_id=users.id) WHERE id=$1', [id]),
   uAll:       () => db.all('SELECT id,username,name,email,color,avatar,karma,is_admin,is_banned,ban_reason,created_at FROM users ORDER BY created_at DESC LIMIT 100'),
-  uBan:       (reason, id) => db.run('UPDATE users SET is_banned=1,ban_reason=$1 WHERE id=$2', [reason, id]),
-  uUnban:     (id) => db.run('UPDATE users SET is_banned=0,ban_reason=NULL WHERE id=$1', [id]),
+  uBan:       (reason, id, expiresAt) => db.run('UPDATE users SET is_banned=1,ban_reason=$1,ban_expires_at=$2 WHERE id=$3', [reason, expiresAt||null, id]),
+  uUnban:     (id) => db.run('UPDATE users SET is_banned=0,ban_reason=NULL,ban_expires_at=NULL WHERE id=$1', [id]),
   uMakeAdmin: (id) => db.run('UPDATE users SET is_admin=1 WHERE id=$1', [id]),
   uRemAdmin:  (id) => db.run('UPDATE users SET is_admin=0 WHERE id=$1', [id]),
 

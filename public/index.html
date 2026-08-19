@@ -211,11 +211,11 @@
             <div class="convos" id="conv-list"></div>
           </div>
           <div class="chat-col">
-            <div class="chat-empty" id="chat-empty">
-              <div class="chat-empty-icon">💬</div>
-              <div style="font-size:14px;font-weight:600;color:var(--tx3)">Suhbat tanlang</div>
-              <div style="font-size:12px;color:var(--tx4)">Foydalanuvchi profiliga kirib xabar yuboring</div>
-            </div>
+<div class="chat-empty" id="chat-empty">
+  <div class="chat-empty-icon">💬</div>
+  <div style="font-size:14px;font-weight:600;color:var(--tx3)">Suhbatlar</div>
+  <div style="font-size:12px;color:var(--tx4)">Hozircha suhbatlar yo'q. Yangi suhbatni foydalanuvchi profilidan boshlang.</div>
+</div>
             <div class="chat-panel" id="chat-panel">
               <div class="chat-hd" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2);flex-shrink:0">
                 <div id="chat-hd-inner" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0"></div>
@@ -289,7 +289,7 @@
       <div id="sec-user" class="section"><div id="user-cnt"></div></div>
       <div id="sec-search" class="section"><div id="search-res"></div></div>
       <div id="sec-saved" class="section">
-        <div style="font-size:18px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:12px">🔖 Saqlangan</div>
+        <div style="font-size:18px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:12px">🔖 Saqlangan postlar</div>
         <div id="saved-cnt"></div>
       </div>
       <div id="sec-settings" class="section"><div id="settings-cnt"></div></div>
@@ -332,7 +332,7 @@
       <div id="sub-img-drop" onclick="document.getElementById('sub-img-file').click()" style="border:2px dashed var(--border2);border-radius:var(--r-lg);padding:40px;text-align:center;cursor:pointer;color:var(--tx4);transition:border-color .2s">
         <div style="font-size:40px;margin-bottom:10px">🖼️</div>
         <div style="font-weight:600;margin-bottom:4px">Rasm yuklash uchun bosing</div>
-        <small>JPG, PNG, GIF, WEBP (max 10MB)</small>
+        <small>JPG, PNG, GIF, WEBP, HEIC (max 10MB)</small>
       </div>
       <div id="sub-img-preview"></div>
     </div>
@@ -341,7 +341,7 @@
       <input type="file" id="sub-vid-file" accept="video/*" style="display:none" onchange="previewSubVid(this)">
       <div id="vid-warn" style="background:rgba(200,146,42,.08);border:1px solid var(--gold-bd);border-radius:var(--r);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gold)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span id="vid-warn-text">Video kamida 3 daqiqa bo'lishi kerak</span>
+        <span id="vid-warn-text">Video ko'pi bilan 10 daqiqa bo'lishi kerak</span>
       </div>
       <div onclick="document.getElementById('sub-vid-file').click()" style="border:2px dashed var(--border2);border-radius:var(--r-lg);padding:40px;text-align:center;cursor:pointer;color:var(--tx4);transition:border-color .2s">
         <div style="font-size:40px;margin-bottom:10px">🎬</div>
@@ -384,7 +384,7 @@
       <div onclick="document.getElementById('sub-aud-file').click()" style="border:2px dashed var(--border2);border-radius:var(--r-lg);padding:40px;text-align:center;cursor:pointer;color:var(--tx4);transition:border-color .2s">
         <div style="font-size:40px;margin-bottom:10px">🎵</div>
         <div style="font-weight:600;margin-bottom:4px">Audio yuklash</div>
-        <small>MP3, WAV, OGG (max 20MB)</small>
+        <small>MP3, WAV, M4A, AAC, OGG (max 20MB)</small>
       </div>
       <div id="sub-aud-preview"></div>
     </div>
@@ -551,13 +551,11 @@
       <div class="modal-title">👥 Jamoa boshqaruvi</div>
       <button class="modal-close" onclick="document.getElementById('com-admin-overlay').classList.remove('open')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif">🔒 Jamoa turi</div>
-        <button class="btn btn-ghost" id="com-private-toggle" style="font-size:12px;padding:6px 12px"></button>
-      </div>
+    <div>
+      <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:8px">📩 So'rovlar</div>
+      <div id="com-requests-list"></div>
     </div>
-    <div style="margin-bottom:16px">
+    <div style="margin-top:16px">
       <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:8px">👑 Adminlar</div>
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <input class="inp" id="com-admin-username" placeholder="Username kiriting..." style="flex:1;font-size:13px;padding:8px 12px">
@@ -565,9 +563,11 @@
       </div>
       <div id="com-admins-list"></div>
     </div>
-    <div>
-      <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:8px">📩 So'rovlar</div>
-      <div id="com-requests-list"></div>
+    <div style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif">🔒 Jamoa turi</div>
+        <button class="btn btn-ghost" id="com-private-toggle" style="font-size:12px;padding:6px 12px"></button>
+      </div>
     </div>
   </div>
 </div>
@@ -575,12 +575,12 @@
 <!-- DELETE POST -->
 <div id="del-overlay" class="overlay">
   <div class="modal" style="max-width:340px;text-align:center">
-    <div style="font-size:40px;margin-bottom:14px">🗑️</div>
+    <div style="font-size:40px;margin-bottom:14px">⚠️</div>
     <div class="modal-title" style="margin-bottom:8px">Postni o'chirish</div>
     <div style="font-size:13px;color:var(--tx3);margin-bottom:20px">Bu amalni ortga qaytarib bo'lmaydi</div>
     <div class="modal-acts" style="justify-content:center">
       <button class="btn btn-ghost" onclick="closeDelPost()">Bekor</button>
-      <button class="btn btn-danger" onclick="doDelPost()">O'chirish</button>
+      <button style="background:#E94560;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px" onclick="doDelPost()">⚠️ O'chirish</button>
     </div>
   </div>
 </div>
@@ -589,10 +589,21 @@
 <div id="ban-modal" class="overlay">
   <div class="modal" style="max-width:380px">
     <div class="modal-hd"><div class="modal-title">🚫 Bloklash sababi</div></div>
-    <div class="form-row"><textarea class="inp" id="ban-reason-inp" placeholder="Sabab kiriting..." rows="3"></textarea></div>
+    <div class="form-row"><label class="form-lbl">Sabab</label><textarea class="inp" id="ban-reason-inp" placeholder="Sabab kiriting..." rows="3"></textarea></div>
+    <div class="form-row"><label class="form-lbl">Muddat</label>
+      <select class="inp" id="ban-duration" style="font-size:13px">
+        <option value="0">Doimiy</option>
+        <option value="1">1 kun</option>
+        <option value="3">3 kun</option>
+        <option value="7">1 hafta</option>
+        <option value="30">1 oy</option>
+        <option value="90">3 oy</option>
+        <option value="365">1 yil</option>
+      </select>
+    </div>
     <div class="modal-acts">
       <button class="btn btn-ghost" onclick="closeBanModal()">Bekor</button>
-      <button class="btn btn-danger" onclick="confirmBan()">Bloklash</button>
+      <button style="background:#E94560;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px" onclick="confirmBan()">🚫 Bloklash</button>
     </div>
   </div>
 </div>
@@ -627,13 +638,12 @@
       <div class="modal-title">🚩 Shikoyat</div>
       <button class="modal-close" onclick="closeReport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <div style="padding:0 0 8px;font-size:13px;color:var(--tx3)">Sababini tanlang yoki yozing:</div>
+    <div style="padding:0 0 8px;font-size:13px;color:var(--tx3)">Sababini tanlang:</div>
     <div id="report-reasons" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Spam yoki reklama</button>
-      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Haqorat yoki tahdid</button>
-      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Noto'g'ri ma'lumot</button>
-      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Noqonuniy kontent</button>
-      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">Boshqa sabab</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">🚫 Spam yoki reklama</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">😠 Haqorat yoki tahdid</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">🔞 Nomaqbul kontent</button>
+      <button class="report-reason-btn" onclick="selectReportReason(this)" style="text-align:left;padding:10px 14px;border:1.5px solid var(--border2);border-radius:var(--r);background:var(--surface);color:var(--tx1);cursor:pointer;font-size:13px;transition:all .15s">🚨 Boshqa (yozing)</button>
     </div>
     <div class="form-row"><textarea class="inp" id="report-reason-text" placeholder="Qo'shimcha izoh (ixtiyoriy)..." rows="3"></textarea></div>
     <div class="modal-acts">
