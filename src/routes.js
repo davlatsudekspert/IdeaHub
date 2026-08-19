@@ -10,6 +10,7 @@ const ws = require('./ws');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const UPLOAD   = path.join(DATA_DIR, 'uploads');
 if (!fs.existsSync(UPLOAD)) fs.mkdirSync(UPLOAD, { recursive: true });
+const tgPendingProfiles = new Map();
 
 /* ── helpers ── */
 function json(res, data, code = 200) {
@@ -179,16 +180,27 @@ async function route(req, res) {
     const tgId = String(id);
     let user = await Q.uByTgId(tgId);
     if (!user) {
-      const uname = (username || `user${id}`).toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) || `tg_${id}`;
-      const existing = await Q.uByUsername(uname);
-      const finalName = existing ? `${uname}_${Date.now()}` : uname;
-      const uid2 = uid();
-      const email = `tg_${id}@mindhub.local`;
-      await Q.uInsert(uid2, finalName, first_name || 'Telegram User', email, crypto.randomBytes(32).toString('hex'), randColor());
-      await Q.uSetTgId(tgId, uid2);
-      user = await Q.uById(uid2);
+      const tempToken = crypto.randomBytes(32).toString('hex');
+      tgPendingProfiles.set(tempToken, { tgId, first_name: first_name || '', username: username || '', photo_url: photo_url || '', expires: Date.now() + 300000 });
+      return json(res, { needProfile: true, tempToken });
     }
     return json(res, { token: makeToken(user.id), user: await Q.uById(user.id) });
+  }
+  if (p === '/api/auth/telegram-finish' && m === 'POST') {
+    const b = await readBody(req);
+    const { tempToken, name, username } = b;
+    if (!tempToken || !name || !username) return json(res, { error: "Ma'lumotlar to'liq emas" }, 400);
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return json(res, { error: 'Username: 3-20 belgi, faqat harf/raqam/_' }, 400);
+    const pending = tgPendingProfiles.get(tempToken);
+    if (!pending || Date.now() > pending.expires) return json(res, { error: "Sessiya tugagan. Qaytadan kirish kerak" }, 403);
+    tgPendingProfiles.delete(tempToken);
+    if (await Q.uByUsername(username)) return json(res, { error: 'Bu username band' }, 409);
+    const newId = uid();
+    const email = `tg_${pending.tgId}@mindhub.local`;
+    await Q.uInsert(newId, username.toLowerCase(), name.trim(), email, crypto.randomBytes(32).toString('hex'), randColor());
+    await Q.uSetTgId(pending.tgId, newId);
+    if (pending.photo_url) await Q.uUpdAv(pending.photo_url, newId);
+    return json(res, { token: makeToken(newId), user: await Q.uById(newId) });
   }
   if (p === '/api/auth/register' && m === 'POST') {
     const b = await readBody(req);

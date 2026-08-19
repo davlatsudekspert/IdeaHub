@@ -27,6 +27,23 @@
       <div class="form-row"><input class="inp" id="am-uname" placeholder="Username / Email" autocomplete="username"></div>
       <div class="form-row"><input class="inp" id="am-pass" placeholder="Parol" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAmLogin()"></div>
       <button class="btn btn-gold" style="width:100%" id="am-login-btn" onclick="doAmLogin()">Kirish</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:12px;color:var(--tx3)">yoki</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div id="tg-login-container" style="display:flex;justify-content:center"></div>
+    </div>
+    <div id="am-tg-profile-form" style="display:none">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:32px;margin-bottom:8px">👋</div>
+        <div style="font-size:14px;font-weight:600">Xush kelibsiz!</div>
+        <div style="font-size:12px;color:var(--tx3);margin-top:4px">Ma'lumotlaringizni to'ldiring</div>
+      </div>
+      <div id="am-tg-err" class="auth-err"></div>
+      <div class="form-row"><label class="form-lbl">Ism Familiya</label><input class="inp" id="am-tg-name" placeholder="Ismingiz"></div>
+      <div class="form-row"><label class="form-lbl">Username</label><input class="inp" id="am-tg-user" placeholder="username (lotin, raqam, _)"></div>
+      <button class="btn btn-gold" style="width:100%" id="am-tg-btn" onclick="finishTgReg()">Davom etish</button>
     </div>
     <div id="am-reg-form" style="display:none">
       <div class="form-row"><input class="inp" id="am-reg-name" placeholder="Ismingiz"></div>

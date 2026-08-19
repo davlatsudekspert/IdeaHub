@@ -1,7 +1,7 @@
 'use strict';
 
 /* ═══ TELEGRAM LOGIN ═══ */
-let _tgWidgetLoaded = false;
+let _tgPendingUser = null;
 function loadTgWidget(containerId) {
   const el = document.getElementById(containerId);
   if (!el || el.querySelector('script')) return;
@@ -18,10 +18,34 @@ async function onTelegramAuth(user) {
   const err = document.getElementById('am-err');
   try {
     const d = await api('POST', '/auth/telegram-login', user);
+    if (d.needProfile) {
+      _tgPendingUser = d;
+      document.getElementById('am-login-form').style.display = 'none';
+      document.getElementById('am-reg-form').style.display = 'none';
+      document.getElementById('am-forgot-form').style.display = 'none';
+      document.getElementById('am-tg-profile-form').style.display = 'block';
+      document.getElementById('am-tg-name').value = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+      document.getElementById('am-tg-user').value = user.username || '';
+      document.getElementById('am-tg-name').focus();
+      return;
+    }
     tokSave(d.token); Tok.set(d.token); closeAuthModal(); await boot(d.user);
   } catch (e) {
     if (err) { err.textContent = e.message; err.classList.add('on'); }
   }
+}
+async function finishTgReg() {
+  const name = (document.getElementById('am-tg-name').value || '').trim();
+  const username = (document.getElementById('am-tg-user').value || '').trim();
+  const err = document.getElementById('am-tg-err');
+  err.classList.remove('on');
+  if (!name || !username) { err.textContent = "Ism va username kerak"; err.classList.add('on'); return; }
+  const btn = document.getElementById('am-tg-btn'); btn.disabled = true; btn.textContent = '...';
+  try {
+    const d = await api('POST', '/auth/telegram-finish', { token: _tgPendingUser.tempToken, name, username });
+    tokSave(d.token); Tok.set(d.token); closeAuthModal(); await boot(d.user);
+  } catch (e) { err.textContent = e.message; err.classList.add('on'); }
+  finally { btn.disabled = false; btn.textContent = 'Davom etish'; }
 }
 
 /* ═══ AUTH MODAL ═══ */
@@ -34,7 +58,9 @@ function switchAmTab(t){
   document.getElementById('am-login-form').style.display=t==='login'?'block':'none';
   document.getElementById('am-reg-form').style.display=t==='register'?'block':'none';
   document.getElementById('am-forgot-form').style.display=t==='forgot'?'block':'none';
+  document.getElementById('am-tg-profile-form').style.display='none';
   document.getElementById('am-err').classList.remove('on');
+  if(t==='login') loadTgWidget('tg-login-container');
   if(t==='forgot') loadTgWidget('tg-forgot-container');
 }
 function requireAuth(cb){ if(window._me){cb&&cb();return true;}showAuthModal();return false;}
