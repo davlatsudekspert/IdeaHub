@@ -122,6 +122,9 @@ function syncTopbar(u){
   const av=document.getElementById('tb-av');
   if(av){av.style.cssText=avStyle(u,30)+'border-radius:50%;';av.innerHTML=avHtml(u,30,11);}
   const nm=document.getElementById('tb-av-name'); if(nm) nm.textContent=u.name||u.username;
+  const sbAv=document.getElementById('sb-av');
+  if(sbAv){sbAv.style.cssText+=avStyle(u,30)+'border-radius:50%;';sbAv.innerHTML=avHtml(u,30,11);}
+  const sbNm=document.getElementById('sb-uname'); if(sbNm) sbNm.textContent=u.name||u.username;
   document.getElementById('admin-lsb')?.style.setProperty('display',(u.role==='admin'||u.role==='leader')?'flex':'none');
 }
 
@@ -133,10 +136,9 @@ async function boot(initialUser){
   syncTopbar(window._me);
   if (window._me?.is_banned) showBanBanner(window._me.ban_reason);
   WS.connect(Tok.get());
-  initProblemWS(); initMsgWS(); initCallWS();
+  initProblemWS();
   loadCategoryFilters();
-  await Promise.allSettled([loadFeed(true), loadNotifCount(), loadConvos()]);
-  initScrollFeed();
+  await Promise.allSettled([loadClusters(true), loadNotifCount()]);
   initMurojaatScrollFeed();
   await initPushPermissionPrompt();
   const urlParams = new URLSearchParams(location.search);
@@ -216,13 +218,11 @@ async function openUser(param){
         <div class="av prof-av" style="${avStyle(u,72)}" ${isMe?'onclick="document.getElementById(\'av-inp\').click()" style=\"cursor:pointer\"':''}>${avHtml(u,72,24)}</div>
         <div style="flex:1;min-width:0">
           <div class="prof-name">${esc(u.name)}</div>
-          <div class="prof-sub">u/${esc(u.username)} ${u.region_name?' · 📍 '+esc(u.region_name):''} ${u.online?'<span style="color:var(--grn)">● Onlayn</span>':''}</div>
+          <div class="prof-sub">${u.region_name?'📍 '+esc(u.region_name):''} ${u.online?'<span style="color:var(--grn)">● Onlayn</span>':''}</div>
           ${u.bio?`<div style="font-size:13px;color:var(--tx3);margin-top:6px">${esc(u.bio)}</div>`:''}
-          <div style="display:flex;gap:8px;margin-top:10px">
-            ${isMe
-              ? `<button class="btn btn-gold" onclick="goSec('settings');loadSettings()">${IC.cam} Sozlamalar</button><input type="file" accept="image/*" id="av-inp" style="display:none" onchange="uploadAvatar(this)">`
-              : `<button class="btn btn-gold" onclick="startChat('${escJs(u.username)}')">${IC.msg} Xabar</button>`}
-          </div>
+          ${isMe ? `<div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn btn-gold" onclick="goSec('settings');loadSettings()">${IC.cam} Sozlamalar</button><input type="file" accept="image/*" id="av-inp" style="display:none" onchange="uploadAvatar(this)">
+          </div>` : ''}
         </div>
       </div>
       <div class="sr-hd">Murojaatlari</div>
@@ -346,18 +346,6 @@ async function doSearch(q){
 }
 function setBnActive(id){ document.querySelectorAll('.bn-item[id]').forEach(b=>b.classList.toggle('active',b.id===id)); }
 
-/* ═══ SAQLANGAN POSTLAR ═══ */
-async function loadSavedPosts(){
-  const el=document.getElementById('saved-cnt'); if(!el) return;
-  el.innerHTML=spinner();
-  try{
-    const posts=await API.savedPosts();
-    if(!posts.length){ el.innerHTML=emptyEl('save',"Hali saqlangan post yo'q"); return; }
-    el.innerHTML='';
-    posts.forEach((p,i)=>{ const d=document.createElement('div'); d.innerHTML=buildPost(p); const c=d.firstElementChild; c.style.animationDelay=(i*.04)+'s'; el.appendChild(c); });
-  }catch(e){ el.innerHTML=emptyEl('close','Xatolik',e.message); }
-}
-
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('search-res') && (document.getElementById('search-res').innerHTML = `
@@ -387,4 +375,4 @@ window.syncTopbar=syncTopbar; window.boot=boot; window.toggleTheme=toggleTheme; 
 window.openUser=openUser; window.uploadAvatar=uploadAvatar; window.loadSettings=loadSettings; window.saveProfile=saveProfile; window.doChpass=doChpass;
 window.loadNotifCount=loadNotifCount; window.loadNotifs=loadNotifs; window.markNotifs=markNotifs;
 window.doSearch=doSearch; window.debouncedSearch=debouncedSearch; window.onTopSearch=onTopSearch; window.openMobileSearch=openMobileSearch;
-window.setBnActive=setBnActive; window.showBanBanner=showBanBanner; window.loadSavedPosts=loadSavedPosts;
+window.setBnActive=setBnActive; window.showBanBanner=showBanBanner;

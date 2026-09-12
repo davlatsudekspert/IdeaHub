@@ -88,7 +88,7 @@ export function makeQ(db) {
        WHERE (? IS NULL OR cl.region_id=?) AND (? IS NULL OR cl.category_id=?)
        ORDER BY cl.support_count DESC LIMIT ? OFFSET ?`,
       region_id || null, region_id || null, category_id || null, category_id || null, limit, offset),
-    clProblems: (cluster_id) => all('SELECT p.*,u.username,u.color,u.avatar FROM problems p JOIN users u ON p.user_id=u.id WHERE p.cluster_id=? AND p.is_deleted=0 ORDER BY p.created_at ASC', cluster_id),
+    clProblems: (cluster_id) => all('SELECT p.*,u.username,u.name as uname,u.color,u.avatar FROM problems p JOIN users u ON p.user_id=u.id WHERE p.cluster_id=? AND p.is_deleted=0 ORDER BY p.created_at ASC', cluster_id),
 
     /* ── supports ── */
     svCheck: (user_id, cluster_id) => get('SELECT 1 FROM supports WHERE user_id=? AND cluster_id=?', user_id, cluster_id),
@@ -112,7 +112,7 @@ export function makeQ(db) {
     solAccept: (id, cluster_id) => run('UPDATE solutions SET is_accepted=(id=?) WHERE cluster_id=?', id, cluster_id),
 
     /* ── comments ── */
-    cmByCluster: (cluster_id) => all('SELECT c.*,u.username,u.color,u.avatar FROM comments c JOIN users u ON c.user_id=u.id WHERE c.cluster_id=? ORDER BY c.created_at ASC', cluster_id),
+    cmByCluster: (cluster_id) => all('SELECT c.*,u.username,u.name as uname,u.color,u.avatar FROM comments c JOIN users u ON c.user_id=u.id WHERE c.cluster_id=? ORDER BY c.created_at ASC', cluster_id),
     cmInsert: (id, cluster_id, user_id, body) => run('INSERT INTO comments(id,cluster_id,user_id,body) VALUES(?,?,?,?)', id, cluster_id, user_id, body),
     cmOwner: (id) => get('SELECT user_id, cluster_id FROM comments WHERE id=?', id),
     cmDelete: (id) => run("UPDATE comments SET is_deleted=1,body='[o''chirildi]' WHERE id=?", id),

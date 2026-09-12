@@ -1091,7 +1091,7 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .sr-user-sub{font-size:12px;color:var(--tx4);}
 
 /* AUTH */
-#auth{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
+#auth{min-height:calc(100vh - 36px);display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
 .auth-wrap{display:flex;max-width:860px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--shadow-lg);animation:fadeUp .45s cubic-bezier(.34,1.56,.64,1);}
 .auth-left{flex:1;background:linear-gradient(150deg,var(--navy-900) 0%,var(--navy-800) 55%,var(--navy-700) 100%);padding:40px 36px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;}
 .auth-left::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 8px 8px,rgba(212,160,23,.35) 1.5px,transparent 0);background-size:26px 26px;opacity:.35;pointer-events:none;}
@@ -1197,10 +1197,19 @@ body { overflow-x: hidden; }
 ════════════════════════════════════ */
 @media (max-width: 600px) {
 
-  /* ── Fixed Topbar ── */
+  /* ── Utility bar ham mobilda fixed bo'lishi kerak — aks holda topbar
+     "muallaq" qoladi va skroll qilinganda tepada bo'sh joy qoladi.
+     top:4px — bayroq lentasi (4px, body{padding-top:4px} bilan mos) ostida. ── */
+  .utility-bar {
+    position: fixed; top: 4px; left: 0; right: 0; z-index: 301;
+    height: 32px; font-size: 11px; padding: 0 10px;
+  }
+  .ub-hotline { font-size: 11px; }
+
+  /* ── Fixed Topbar (bayroq + utility bar balandligicha pastroqda: 4+32=36px) ── */
   #topbar {
     position: fixed;
-    top: 0; left: 0; right: 0;
+    top: 36px; left: 0; right: 0;
     height: 52px;
     padding: 0 10px;
     z-index: 300;
@@ -1218,9 +1227,9 @@ body { overflow-x: hidden; }
   .tb-av-wrap   { padding: 4px; border-radius: 50%; }
   .tb-av-wrap .tb-av-info { display: none; }
 
-  /* ── Layout offset ── */
+  /* ── Layout offset (bayroq+utility bar+topbar = 36+52+~10px bo'shliq) ── */
   #layout {
-    padding: 62px 8px 70px;
+    padding: 98px 8px 70px;
     gap: 0;
   }
   #feed-area { max-height: none; overflow-y: visible; }
@@ -1358,7 +1367,7 @@ body { overflow-x: hidden; }
   #mobile-search-bar {
     display: none;
     position: fixed;
-    top: 52px; left: 0; right: 0;
+    top: 88px; left: 0; right: 0;
     padding: 8px 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
@@ -1366,7 +1375,7 @@ body { overflow-x: hidden; }
   }
   #mobile-search-bar.open { display: block; }
   /* Ochilganda kontentni pastga suramiz — aks holda birinchi postni yopib qo'yadi */
-  #mobile-search-bar.open ~ #layout { padding-top: 108px; }
+  #mobile-search-bar.open ~ #layout { padding-top: 144px; }
   #mobile-search-inp {
     width: 100%; background: var(--bg2);
     border: 1px solid var(--border2); border-radius: 22px;

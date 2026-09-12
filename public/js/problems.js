@@ -109,7 +109,7 @@ function renderClusterDetail(c) {
         <div class="problem-item">
           <div class="av" style="${avStyle(p,32)};border-radius:50%;flex-shrink:0">${avHtml(p,32,11)}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:700;margin-bottom:3px">${esc(p.username)} <span style="color:var(--tx4);font-weight:400;font-size:12px">· ${p.ago}</span></div>
+            <div style="font-size:13px;font-weight:700;margin-bottom:3px">${esc(p.uname||p.username)} <span style="color:var(--tx4);font-weight:400;font-size:12px">· ${p.ago}</span></div>
             <div class="problem-body">${esc(p.body || p.title)}</div>
             ${p.image?`<div class="problem-img"><img src="${esc(p.image)}" alt="" loading="lazy"></div>`:''}
             <button class="btn btn-ghost" style="margin-top:6px;padding:4px 10px;font-size:11px" onclick="openReport('${p.id}','problem')">🚩 Shikoyat</button>
@@ -149,7 +149,7 @@ function buildCommentHtml(cm) {
   return `<div class="comment-item" id="cmt-${cm.id}">
     <div class="av" style="${avStyle(cm,30)};border-radius:50%;flex-shrink:0">${avHtml(cm,30,11)}</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:700;margin-bottom:2px">${esc(cm.username)} <span style="color:var(--tx4);font-weight:400;font-size:12px">· ${cm.ago}</span></div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:2px">${esc(cm.uname||cm.username)} <span style="color:var(--tx4);font-weight:400;font-size:12px">· ${cm.ago}</span></div>
       <div class="comment-body">${esc(cm.body)}</div>
     </div>
   </div>`;
