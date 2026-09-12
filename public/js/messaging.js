@@ -12,6 +12,7 @@ async function loadConvos() {
   document.querySelector('.msg-wrap')?.classList.remove('chat-open');
   try {
     const convos = await API.messages();
+    loadContactsScroll(convos);
     const el = document.getElementById('conv-list'); if (!el) return;
     el.innerHTML = '';
     if (!convos.length) { el.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--tx4)"><div style="font-size:32px;margin-bottom:8px;opacity:.5">💬</div><div style="font-size:13px">Hozircha xabar yo'q.</div></div>`; return; }
@@ -27,6 +28,27 @@ async function loadConvos() {
       el.appendChild(d);
     });
   } catch(e) { console.error('loadConvos:', e); }
+}
+function loadContactsScroll(convos) {
+  const el = document.getElementById('contacts-scroll'); if (!el) return;
+  try {
+    if (!convos || !convos.length) { el.style.display='none'; return; }
+    el.innerHTML = '';
+    el.style.display = 'flex';
+    convos.slice(0,20).forEach(cv => {
+      const o = cv.other;
+      const btn = document.createElement('div');
+      btn.className = 'contact-bubble';
+      btn.onclick = () => openChat(o);
+      btn.innerHTML = `
+        <div class="contact-av" style="${avStyle(o,46)};border-radius:50%;position:relative;flex-shrink:0">
+          ${avHtml(o,46,14)}
+          ${cv.unread>0?'<div style="position:absolute;top:-1px;right:-1px;width:12px;height:12px;border-radius:50%;background:var(--red);border:2px solid var(--surface)"></div>':''}
+        </div>
+        <div class="contact-name">${esc((o.name||o.username).split(' ')[0])}</div>`;
+      el.appendChild(btn);
+    });
+  } catch {}
 }
 function filterConvos(q) {
   document.querySelectorAll('#conv-list .conv').forEach(el => {
@@ -285,7 +307,7 @@ function initCallWS() {
   WS.on('call_rejected', () => { toast("📞 Qo'ng'iroq rad etildi"); endCall(); });
 }
 
-window.loadConvos=loadConvos; window.filterConvos=filterConvos; window.openChat=openChat; window.closeChatMobile=closeChatMobile;
+window.loadConvos=loadConvos; window.loadContactsScroll=loadContactsScroll; window.filterConvos=filterConvos; window.openChat=openChat; window.closeChatMobile=closeChatMobile;
 window.addBubble=addBubble; window.deleteMsg=deleteMsg; window.playVoiceMsg=playVoiceMsg; window.sendMsg=sendMsg; window.sendChatImage=sendChatImage;
 window.initMsgWS=initMsgWS; window.startChat=startChat;
 window.startVoiceRec=startVoiceRec; window.cancelVoice=cancelVoice; window.sendVoiceMsg=sendVoiceMsg;
