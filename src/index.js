@@ -272,6 +272,18 @@ async function route(request, env, ctx, p, q, m) {
     return json({ telegramBotName: hasTelegram(env) ? (env.TG_BOT_NAME || null) : null });
   }
 
+  /* Bosh sahifa uchun ochiq (login talab qilmaydigan) statistika/toifalar —
+     REDESIGN.md §3.2 statistika lentasi va Yo'nalishlar gridi. */
+  if (p === '/api/public-stats' && m === 'GET') {
+    return json(await Q.publicStats());
+  }
+  if (p === '/api/public-categories' && m === 'GET') {
+    return json(await Q.catCounts());
+  }
+  if (p === '/api/public-regions' && m === 'GET') {
+    return json(await Q.dashRegionBreakdown());
+  }
+
   /* ══ TELEGRAM LOGIN WIDGET ══
      Bot bilan gaplashish (webhook/polling) shart emas — vidjet Telegram
      popup'ida tasdiqlangan foydalanuvchi ma'lumotini to'g'ridan-to'g'ri

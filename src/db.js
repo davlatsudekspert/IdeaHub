@@ -285,6 +285,24 @@ export function makeQ(db) {
       ]);
       return { total_problems: total.c, places: places.c, solutions: solutions.c, resolved_pct: resolvedPct.pct || 0, total_users: users.c, total_posts: posts.c, total_communities: communities.c };
     },
+    /* Ochiq (login talab qilmaydigan) statistika — bosh sahifa uchun. Hamma
+       toifa/hudud 0 hisob bilan ham chiqadi (LEFT JOIN), faqat murojaat
+       borlari emas — Yo'nalishlar gridida hammasi doim ko'rinishi kerak. */
+    publicStats: async () => {
+      const [total, places, solutions, resolvedPct] = await Promise.all([
+        get('SELECT COUNT(*) as c FROM problems WHERE is_deleted=0'),
+        get(`SELECT (SELECT COUNT(*) FROM regions) + (SELECT COUNT(*) FROM schools) as c`),
+        get('SELECT COUNT(*) as c FROM solutions'),
+        get(`SELECT CASE WHEN COUNT(*)=0 THEN 0 ELSE ROUND(100.0*SUM(CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END)/COUNT(*)) END as pct FROM clusters`),
+      ]);
+      return { total_problems: total.c, places: places.c, solutions: solutions.c, resolved_pct: resolvedPct.pct || 0 };
+    },
+    /* Tartib SQL'da emas, frontend'dagi CATEGORIES massivida boshqariladi —
+       shuning uchun bu yerda ORDER BY shart emas. */
+    catCounts: () => all(
+      `SELECT cat.id, cat.name, cat.color, cat.icon, COUNT(cl.id) as cnt
+       FROM categories cat LEFT JOIN clusters cl ON cl.category_id=cat.id
+       GROUP BY cat.id`),
     dashTopCategoriesByRegion: (region_id) => all(
       `SELECT cat.id, cat.name, cat.color, cat.icon, COUNT(*) as cnt
        FROM clusters cl JOIN categories cat ON cl.category_id=cat.id

@@ -21,6 +21,64 @@ function loadCategoryFilters() {
 }
 function setFeedCategory(catId) { _feedCategory = catId; loadCategoryFilters(); loadClusters(true); }
 
+/* ═══ BOSH SAHIFA — hero/statistika/Yo'nalishlar/hududlar (REDESIGN.md §3.2) ═══
+   Bittasi ishlamasa ham qolganlari ko'rinishi uchun har biri alohida try/catch'da. */
+const YONALISH_DESC = {
+  'talim': "Maktab, kolej, universitet infratuzilmasi",
+  'yol-xavfsizligi': "Svetofor, o'tish joyi, yo'l belgisi",
+  'ekologiya': "Chiqindi, ifloslanish, ko'kalamzorlashtirish",
+  'ijtimoiy': "Transport, kommunal xizmatlar",
+  'sport': "Sport maydonchasi, dam olish maskanlari",
+  'sogliq': "Shifoxona, poliklinika xizmatlari",
+  'raqamlashtirish': "Internet, elektron davlat xizmatlari",
+  'boshqa': "Yuqoridagilarga mos kelmaydigan murojaatlar",
+};
+async function initHomepageExtras() {
+  try {
+    const s = await API.publicStats();
+    document.getElementById('stat-total').textContent = fmtNum(s.total_problems);
+    document.getElementById('stat-resolved').textContent = s.resolved_pct + '%';
+    document.getElementById('stat-solutions').textContent = fmtNum(s.solutions);
+    document.getElementById('stat-places').textContent = fmtNum(s.places);
+  } catch {}
+
+  const chipsEl = document.getElementById('hero-chips');
+  if (chipsEl) chipsEl.innerHTML = CATEGORIES.filter(c=>c.id!=='boshqa').slice(0,5)
+    .map(c=>`<span class="hc-item" onclick="setFeedCategory('${c.id}');document.getElementById('category-filters').scrollIntoView({behavior:'smooth'})">${c.icon} ${esc(c.name)}</span>`).join('');
+
+  try {
+    const cats = await API.publicCategories();
+    const byId = {}; cats.forEach(c => byId[c.id] = c.cnt);
+    const grid = document.getElementById('yonalish-grid');
+    if (grid) grid.innerHTML = CATEGORIES.map(c => {
+      const cnt = byId[c.id] || 0;
+      return `<div class="yonalish-card" onclick="setFeedCategory('${c.id}');document.getElementById('category-filters').scrollIntoView({behavior:'smooth'})">
+        <span class="yonalish-count${cnt?' has-items':''}">${fmtNum(cnt)}</span>
+        <div class="yonalish-ico">${c.icon}</div>
+        <div class="yonalish-name">${esc(c.name)}</div>
+        <div class="yonalish-desc">${esc(YONALISH_DESC[c.id]||'')}</div>
+      </div>`;
+    }).join('');
+  } catch {}
+
+  try {
+    const [newRows, hotRows] = await Promise.all([API.clusters('new',0,{}), API.clusters('hot',0,{})]);
+    const render = rows => rows.slice(0,5).map(c=>`<div class="tc-row" onclick="openCluster('${c.id}')"><span class="tc-title">${esc(c.title)}</span><span class="tc-meta">👍 ${fmtNum(c.support_count)}</span></div>`).join('') || `<div style="padding:10px;color:var(--tx4);font-size:12px">Hali murojaat yo'q</div>`;
+    const newEl = document.getElementById('two-col-new'); if (newEl) newEl.innerHTML = render(newRows);
+    const hotEl = document.getElementById('two-col-hot'); if (hotEl) hotEl.innerHTML = render(hotRows);
+  } catch {}
+
+  try {
+    const regions = await API.publicRegions();
+    const max = Math.max(...regions.map(r=>r.cluster_count||0), 1);
+    const el = document.getElementById('region-block');
+    if (el) {
+      const sorted = [...regions].sort((a,b)=>b.cluster_count-a.cluster_count);
+      el.innerHTML = sorted.map(r => `<div class="region-row"><span class="rg-name">${esc(r.name)}</span><div class="rg-track"><div class="rg-fill" style="width:${Math.round((r.cluster_count/max)*100)}%"></div></div><span class="rg-count">${fmtNum(r.cluster_count)}</span></div>`).join('');
+    }
+  } catch {}
+}
+
 /* ═══ KLASTER KARTASI ═══ */
 function buildClusterCard(c) {
   const place = [c.region_name, c.school_name].filter(Boolean).join(' · ');
@@ -296,7 +354,7 @@ function initProblemWS() {
 /* Shikoyat (report) uchun umumiy modal core.js'da — bu yerda takror aniqlanmaydi,
    openReport('id','problem') core.js'dagi bitta unified modalni chaqiradi. */
 
-window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory;
+window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory; window.initHomepageExtras=initHomepageExtras;
 window.buildClusterCard=buildClusterCard; window.loadClusters=loadClusters; window.setMurojaatSort=setMurojaatSort; window.initMurojaatScrollFeed=initMurojaatScrollFeed;
 window.openCluster=openCluster; window.switchClusterTab=switchClusterTab; window.toggleSupport=toggleSupport; window.changeClusterStatus=changeClusterStatus;
 window.submitComment=submitComment; window.promptSolution=promptSolution; window.doGenerateSolutions=doGenerateSolutions;

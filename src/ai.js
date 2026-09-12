@@ -37,7 +37,7 @@ async function callGemini(env, prompt, schema) {
 const CATEGORY_SCHEMA = {
   type: 'object',
   properties: {
-    category_id: { type: 'string', enum: ['talim', 'yol-xavfsizligi', 'ekologiya', 'ijtimoiy', 'boshqa'] },
+    category_id: { type: 'string', enum: ['talim', 'yol-xavfsizligi', 'ekologiya', 'ijtimoiy', 'sport', 'sogliq', 'raqamlashtirish', 'boshqa'] },
     confidence: { type: 'number' },
   },
   required: ['category_id', 'confidence'],
@@ -52,7 +52,10 @@ Toifalar:
 - talim: Ta'lim infratuzilmasi (maktab, kolej, universitet bilan bog'liq muammolar)
 - yol-xavfsizligi: Yo'l xavfsizligi (piyoda o'tish joyi, svetofor, yo'l belgisi, tezlik)
 - ekologiya: Ekologiya va tozalik (chiqindi, ifloslanish, ko'kalamzorlashtirish, suv)
-- ijtimoiy: Ijtimoiy xizmatlar (tibbiyot, jamoat transporti, kommunal xizmatlar)
+- ijtimoiy: Ijtimoiy xizmatlar (jamoat transporti, kommunal xizmatlar, ijtimoiy ta'minot)
+- sport: Sport va bo'sh vaqt (sport maydonchasi, stadion, bolalar maydonchasi, madaniy dam olish)
+- sogliq: Sog'liqni saqlash (shifoxona, poliklinika, tibbiy xizmat sifati va mavjudligi)
+- raqamlashtirish: Raqamlashtirish (internet, elektron xizmatlar, davlat portallari bilan bog'liq muammolar)
 - boshqa: Yuqoridagilarga mos kelmaydigan boshqa murojaatlar
 
 Murojaat:

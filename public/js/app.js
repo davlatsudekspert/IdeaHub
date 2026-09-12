@@ -138,7 +138,7 @@ async function boot(initialUser){
   WS.connect(Tok.get());
   initProblemWS();
   loadCategoryFilters();
-  await Promise.allSettled([loadClusters(true), loadNotifCount()]);
+  await Promise.allSettled([loadClusters(true), loadNotifCount(), initHomepageExtras()]);
   initMurojaatScrollFeed();
   await initPushPermissionPrompt();
   const urlParams = new URLSearchParams(location.search);

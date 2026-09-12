@@ -69,6 +69,9 @@ let CATEGORIES = [
   { id:'yol-xavfsizligi', name:"Yo'l xavfsizligi", color:'#D9591F', icon:'🚦' },
   { id:'ekologiya', name:'Ekologiya va tozalik', color:'#238753', icon:'🌱' },
   { id:'ijtimoiy', name:'Ijtimoiy xizmatlar', color:'#8B5CF6', icon:'🤝' },
+  { id:'sport', name:"Sport va bo'sh vaqt", color:'#D6455D', icon:'⚽' },
+  { id:'sogliq', name:"Sog'liqni saqlash", color:'#0F7B8A', icon:'⚕️' },
+  { id:'raqamlashtirish', name:'Raqamlashtirish', color:'#5C7A99', icon:'💻' },
   { id:'boshqa', name:'Boshqa', color:'#917B5C', icon:'📌' },
 ];
 function catById(id) { return CATEGORIES.find(c=>c.id===id) || CATEGORIES[CATEGORIES.length-1]; }
@@ -130,6 +133,9 @@ async function api(method, path, body=null, isForm=false) {
 const API = {
   /* konfiguratsiya */
   config:   ()          => api('GET','/config'),
+  publicStats:      ()  => api('GET','/public-stats'),
+  publicCategories: ()  => api('GET','/public-categories'),
+  publicRegions:    ()  => api('GET','/public-regions'),
   /* auth */
   login:    (u,p)      => api('POST','/auth/login',{username:u,password:p}),
   register: (b)         => api('POST','/auth/register',b),

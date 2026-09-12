@@ -185,6 +185,69 @@
       <!-- BOSH SAHIFA = MUROJAAT OQIMI (Murojaat -> AI -> klaster -> yechim). Umumiy post/jamoa
            tizimi butunlay olib tashlandi (REDESIGN.md) — endi bitta kontent turi bor. -->
       <div id="sec-murojaat" class="section active">
+        <!-- ═══ HERO (REDESIGN.md §3.2.1) ═══ -->
+        <section class="hero-band">
+          <div class="hero-inner">
+            <div class="hero-copy">
+              <h1 class="hero-title">Muammoni ko'r — yechimini yarat</h1>
+              <p class="hero-sub">Murojaatingizni yuboring: AI uni toifalab, o'xshashlari bilan birlashtiradi va yechim topishga yordam beradi.</p>
+              <form class="hero-search" onsubmit="event.preventDefault();document.getElementById('tb-search-inp').value=document.getElementById('hero-search-inp').value;onTopSearch({target:document.getElementById('tb-search-inp')});">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="hero-search-inp" placeholder="Muammo yoki yo'nalish bo'yicha qidiring...">
+                <button type="submit" class="btn btn-gold">Qidirish</button>
+              </form>
+              <div class="hero-chips" id="hero-chips"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ STATISTIKA LENTASI (§3.2.2) ═══ -->
+        <section class="stats-strip" id="stats-strip">
+          <div class="stat-item"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Jami murojaat</div></div>
+          <div class="stat-item"><div class="stat-num" id="stat-resolved">—</div><div class="stat-label">Hal qilingan</div></div>
+          <div class="stat-item"><div class="stat-num" id="stat-solutions">—</div><div class="stat-label">Yechim taklifi</div></div>
+          <div class="stat-item"><div class="stat-num" id="stat-places">—</div><div class="stat-label">Ishtirokchi hudud/maktab</div></div>
+        </section>
+
+        <!-- ═══ YO'NALISHLAR (§3.2.3) ═══ -->
+        <div class="section-hd"><h2>Yo'nalishlar</h2></div>
+        <div class="yonalish-grid" id="yonalish-grid"></div>
+
+        <!-- ═══ YANGI / ENG KO'P QO'LLAB-QUVVATLANGAN (§3.2.4) ═══ -->
+        <div class="two-col-block">
+          <div class="two-col">
+            <div class="two-col-hd"><h3>Yangi murojaatlar</h3><a onclick="setMurojaatSort('new');document.getElementById('murojaat-feed-cnt').scrollIntoView({behavior:'smooth'})">Barchasi →</a></div>
+            <div class="two-col-list" id="two-col-new"></div>
+          </div>
+          <div class="two-col">
+            <div class="two-col-hd"><h3>Eng ko'p qo'llab-quvvatlangan</h3><a onclick="setMurojaatSort('hot');document.getElementById('murojaat-feed-cnt').scrollIntoView({behavior:'smooth'})">Barchasi →</a></div>
+            <div class="two-col-list" id="two-col-hot"></div>
+          </div>
+        </div>
+
+        <!-- ═══ HUDUDLAR KESIMIDA (§3.2.5) ═══ -->
+        <div class="section-hd"><h2>Hududlar kesimida</h2></div>
+        <div class="region-block" id="region-block"></div>
+
+        <!-- ═══ BU QANDAY ISHLAYDI? (§3.2.6) ═══ -->
+        <div class="section-hd"><h2>Bu qanday ishlaydi?</h2></div>
+        <div class="howworks-strip">
+          <div class="howworks-step"><div class="howworks-num">1</div><div class="howworks-text">Muammoni tasvirlab murojaat yuborasiz</div></div>
+          <div class="howworks-step"><div class="howworks-num">2</div><div class="howworks-text">AI uni avtomatik toifalaydi</div></div>
+          <div class="howworks-step"><div class="howworks-num">3</div><div class="howworks-text">O'xshash murojaatlar bilan birlashtiriladi</div></div>
+          <div class="howworks-step"><div class="howworks-num">4</div><div class="howworks-text">Jamoat qo'llab-quvvatlaydi</div></div>
+          <div class="howworks-step"><div class="howworks-num">5</div><div class="howworks-text">Yechim taklif etiladi va amalga oshiriladi</div></div>
+        </div>
+
+        <!-- ═══ FOYDALI HAVOLALAR (§3.2.9 — "hamkor" emas, tasdiqlanmagan sheriklik da'vo qilinmasin) ═══ -->
+        <div class="links-strip">
+          <span class="links-label">Foydali davlat platformalari:</span>
+          <a href="https://my.gov.uz" target="_blank" rel="noopener">my.gov.uz</a>
+          <a href="https://petition.gov.uz" target="_blank" rel="noopener">petition.gov.uz</a>
+          <a href="https://openbudget.uz" target="_blank" rel="noopener">openbudget.uz</a>
+        </div>
+
+        <div class="section-hd" style="margin-top:8px"><h2>Barcha murojaatlar</h2></div>
         <div class="sort-bar">
           <button class="sort-btn active" data-sort="hot" onclick="setMurojaatSort('hot')">👍 Eng ko'p qo'llab-quvvatlangan</button>
           <button class="sort-btn" data-sort="new" onclick="setMurojaatSort('new')">🆕 Yangi</button>
