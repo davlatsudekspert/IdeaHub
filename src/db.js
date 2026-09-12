@@ -52,7 +52,13 @@ export function makeQ(db) {
       LEFT JOIN regions r ON p.region_id=r.id
       LEFT JOIN schools s ON p.school_id=s.id
       WHERE p.id=?`, id),
-    pByUser: (user_id) => all('SELECT p.*,cat.name as category_name, cat.color as category_color FROM problems p LEFT JOIN categories cat ON p.category_id=cat.id WHERE p.user_id=? AND p.is_deleted=0 ORDER BY p.created_at DESC LIMIT 50', user_id),
+    /* cluster_status/cluster_support_count — shaxsiy kabinetda "Mening murojaatlarim"
+       ro'yxatida har bir murojaatning holatini ko'rsatish uchun (REDESIGN.md §3.5). */
+    pByUser: (user_id) => all(`SELECT p.*,cat.name as category_name, cat.color as category_color,
+        cl.status as cluster_status, cl.support_count as cluster_support_count
+      FROM problems p LEFT JOIN categories cat ON p.category_id=cat.id
+      LEFT JOIN clusters cl ON p.cluster_id=cl.id
+      WHERE p.user_id=? AND p.is_deleted=0 ORDER BY p.created_at DESC LIMIT 50`, user_id),
     pPendingAi: (limit) => all('SELECT * FROM problems WHERE ai_status=? ORDER BY created_at ASC LIMIT ?', 'pending', limit || 5),
     pSetCategory: (category_id, ai_status, id) => run('UPDATE problems SET category_id=?,ai_status=? WHERE id=?', category_id, ai_status, id),
     pSetCluster:  (cluster_id, id) => run('UPDATE problems SET cluster_id=? WHERE id=?', cluster_id, id),

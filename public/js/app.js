@@ -206,32 +206,53 @@ document.addEventListener('click', e => {
 function doLogout(){ tokClear();Tok.clr();WS.disconnect();window._me=null;location.reload(); }
 
 /* ═══ PROFIL ═══ */
+/* Shaxsiy kabinet (REDESIGN.md §3.5 — my.gov.uz uslubida): profil + real
+   statistika + "Mening murojaatlarim" holat-belgili ro'yxati. Statistika har
+   qanday profilda ko'rinadi (murojaat ma'lumotlari — ochiq/oshkora, "kabinet"
+   deb faqat OWN sahifada Sozlamalar/rasm yuklash imkoniyati farqlanadi). */
 async function openUser(param){
   if (!param) return;
   goSec('user');
   const el=document.getElementById('user-cnt'); el.innerHTML=spinner();
   try{
     const u=await API.getUser(param);
+    window._curProfileId = u.id;
     const isMe = u.is_me || u.id===window._me?.id;
+    const problems = u.problems || [];
+    const resolved = problems.filter(p => p.cluster_status==='resolved' || p.cluster_status==='closed').length;
+    const inProgress = problems.length - resolved;
+    const seenClusters = new Map();
+    problems.forEach(p => { if (p.cluster_id && !seenClusters.has(p.cluster_id)) seenClusters.set(p.cluster_id, p.cluster_support_count||0); });
+    const supportSum = [...seenClusters.values()].reduce((a,b)=>a+b, 0);
     el.innerHTML=`
       <div class="prof-card">
         <div class="av prof-av" style="${avStyle(u,72)}" ${isMe?'onclick="document.getElementById(\'av-inp\').click()" style=\"cursor:pointer\"':''}>${avHtml(u,72,24)}</div>
         <div style="flex:1;min-width:0">
           <div class="prof-name">${esc(u.name)}</div>
-          <div class="prof-sub">${u.region_name?'📍 '+esc(u.region_name):''} ${u.online?'<span style="color:var(--grn)">● Onlayn</span>':''}</div>
+          <div class="prof-sub">${[u.region_name?'📍 '+esc(u.region_name):'', u.created_at?`A'zo: ${fmtDate(u.created_at)}`:''].filter(Boolean).join(' · ')}${u.online?' <span style="color:var(--grn)">● Onlayn</span>':''}</div>
           ${u.bio?`<div style="font-size:13px;color:var(--tx3);margin-top:6px">${esc(u.bio)}</div>`:''}
           ${isMe ? `<div style="display:flex;gap:8px;margin-top:10px">
             <button class="btn btn-gold" onclick="goSec('settings');loadSettings()">${IC.cam} Sozlamalar</button><input type="file" accept="image/*" id="av-inp" style="display:none" onchange="uploadAvatar(this)">
           </div>` : ''}
         </div>
       </div>
-      <div class="sr-hd">Murojaatlari</div>
+      <section class="stats-strip" style="margin:18px 0 0">
+        <div class="stat-item"><div class="stat-num">${fmtNum(problems.length)}</div><div class="stat-label">Jami murojaat</div></div>
+        <div class="stat-item"><div class="stat-num">${fmtNum(inProgress)}</div><div class="stat-label">Jarayonda</div></div>
+        <div class="stat-item"><div class="stat-num">${fmtNum(resolved)}</div><div class="stat-label">Hal qilingan</div></div>
+        <div class="stat-item"><div class="stat-num">${fmtNum(supportSum)}</div><div class="stat-label">Yig'ilgan qo'llab-quvvatlash</div></div>
+      </section>
+      <div class="sr-hd" style="margin-top:20px">Mening murojaatlarim</div>
       <div id="user-problems-cnt"></div>`;
     const pc=document.getElementById('user-problems-cnt');
-    if(!u.problems?.length) pc.innerHTML=emptyEl('inbox',"Hali murojaat yo'q");
-    else pc.innerHTML = u.problems.map(p=>`
+    if(!problems.length) pc.innerHTML=emptyEl('inbox',"Hali murojaat yo'q");
+    else pc.innerHTML = problems.map(p=>`
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:13px;margin-bottom:8px;cursor:pointer" onclick="${p.cluster_id?`openCluster('${p.cluster_id}')`:''}">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">${p.category_id?catChip(p.category_id):''}<span style="font-size:11px;color:var(--tx4)">${p.ago||''}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">
+          ${p.category_id?catChip(p.category_id):'<span class="cat-chip" style="background:var(--bg2);color:var(--tx4)">🤖 Tahlil qilinmoqda...</span>'}
+          ${p.cluster_status?`<span class="cl-status ${p.cluster_status}">${STATUS_LABEL[p.cluster_status]||p.cluster_status}</span>`:''}
+          <span style="font-size:11px;color:var(--tx4);margin-left:auto">${p.ago||''}</span>
+        </div>
         <div style="font-weight:700;font-size:13.5px">${esc(p.title)}</div>
       </div>`).join('');
   }catch(e){el.innerHTML=emptyEl('close','Topilmadi',e.message);}

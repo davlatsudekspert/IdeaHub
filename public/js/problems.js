@@ -400,26 +400,8 @@ async function doSubmitProblem() {
   finally { btn.disabled = false; btn.innerHTML = 'Yuborish'; }
 }
 
-/* ═══ MENING MUROJAATLARIM ═══ */
-async function loadMyProblems() {
-  const el = document.getElementById('mine-cnt'); if (!el) return;
-  el.innerHTML = spinner();
-  try {
-    const rows = await API.myProblems();
-    if (!rows.length) { el.innerHTML = emptyEl('inbox',"Hali murojaat yubormadingiz"); return; }
-    el.innerHTML = rows.map(p => `
-      <div class="problem-item" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:8px;cursor:pointer" onclick="${p.cluster_id?`openCluster('${p.cluster_id}')`:''}">
-        <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            ${p.category_id?catChip(p.category_id):'<span class="cat-chip" style="background:var(--bg2);color:var(--tx4)">🤖 Tahlil qilinmoqda...</span>'}
-            <span style="font-size:11px;color:var(--tx4)">${p.ago||''}</span>
-          </div>
-          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${esc(p.title)}</div>
-          <div style="font-size:13px;color:var(--tx3)">${esc((p.body||'').slice(0,120))}</div>
-        </div>
-      </div>`).join('');
-  } catch(e) { el.innerHTML = emptyEl('close','Xatolik',e.message); }
-}
+/* "Mening murojaatlarim" endi shaxsiy kabinetning (openUser, app.js) o'zida —
+   holat belgisi bilan birga — ko'rsatiladi, alohida bo'lim sifatida emas. */
 
 /* ═══ AI FON JARAYONI — real vaqtda xabar ═══ */
 function initProblemWS() {
@@ -427,7 +409,8 @@ function initProblemWS() {
     const cat = catById(d.data.category_id);
     toast(`🤖 Murojaatingiz tahlil qilindi: ${cat.icon} ${cat.name}`);
     if (curSec() === 'murojaat') loadClusters(true);
-    if (curSec() === 'mine') loadMyProblems();
+    // Kabinetda o'z profilini ko'rib turgan bo'lsa — holatni jonli yangilaymiz
+    if (curSec() === 'user' && window._curProfileId === window._me?.id) openUser(window._me.id);
   });
 }
 /* Shikoyat (report) uchun umumiy modal core.js'da — bu yerda takror aniqlanmaydi,
@@ -439,5 +422,5 @@ window.openCluster=openCluster; window.switchClusterTab=switchClusterTab; window
 window.submitComment=submitComment; window.promptSolution=promptSolution; window.doGenerateSolutions=doGenerateSolutions;
 window.voteSolutionBtn=voteSolutionBtn; window.acceptSolutionBtn=acceptSolutionBtn;
 window.openSubmitProblem=openSubmitProblem; window.closeSubmitProblem=closeSubmitProblem; window.previewSubProbImg=previewSubProbImg; window.clearSubProbImg=clearSubProbImg; window.doSubmitProblem=doSubmitProblem;
-window.loadMyProblems=loadMyProblems; window.initProblemWS=initProblemWS;
+window.initProblemWS=initProblemWS;
 window.setMurojaatRegion=setMurojaatRegion; window.setMurojaatStatus=setMurojaatStatus; window.clearMurojaatFilters=clearMurojaatFilters; window.initFilterRail=initFilterRail;
