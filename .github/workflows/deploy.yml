@@ -14,6 +14,10 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # CLOUDFLARE_API_TOKEN Environment-secret sifatida shu nomdagi
+    # environment ostida saqlangan — shuning uchun job shu environment'ga
+    # bog'lanishi kerak, aks holda secret ko'rinmaydi.
+    environment: CLOUDFLARE_API_TOKEN
     steps:
       - name: Kodni olish
         uses: actions/checkout@v4
