@@ -33,6 +33,10 @@ function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function escJs(s) { return esc(String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
 function initials(n) { return (n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 function fmtNum(n) { if(n==null) return '0'; return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'k':String(n); }
+/* Intl'ning 'uz-UZ' uzun oy nomlari ko'p brauzerlarda to'liq emas (masalan,
+   Chromium'da "sentyabr" o'rniga "M09" chiqishi mumkin) — shu sabab qo'lda. */
+const UZ_MONTHS = ['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentyabr','oktyabr','noyabr','dekabr'];
+function fmtDate(ts) { if (!ts) return ''; const d = new Date(ts*1000); return `${d.getDate()} ${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
 function fmtTime(sec) { if(!sec||isNaN(sec)) return '0:00'; const m=Math.floor(sec/60),s=Math.floor(sec%60); return m+':'+(s<10?'0':'')+s; }
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
 function spinner() { return '<div class="spin"></div>'; }
@@ -89,6 +93,7 @@ function goSec(id) {
   pauseAllVideos();
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'sec-'+id));
   document.querySelectorAll('.lsb-btn[data-sec]').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
+  syncRightRail(id);
   // Full-screen messages view (sidebar hidden)
   document.getElementById('layout')?.classList.toggle('msgs-full', id === 'msgs');
   // Close mobile search bar when leaving search section
@@ -99,6 +104,22 @@ function goSec(id) {
   document.querySelectorAll('.bn-item[id]').forEach(b => b.classList.remove('active'));
   const bnId = bnMap[id];
   if (bnId) document.getElementById(bnId)?.classList.add('active');
+}
+
+/* O'ng panel (#rsb) faqat murojaatlar ro'yxati (filtr) va murojaat tafsiloti
+   (qo'llab-quvvatlash/tarix) bo'limlarida mazmunga ega — boshqa joyda (profil,
+   sozlamalar, bildirishnoma, admin) bo'sh ustun ko'rinib qolmasligi uchun butunlay
+   yashiriladi. 720px dan tor ekranlarda #rsb umuman ko'rinmaydi (CSS) — bu yerda
+   shunchaki qaysi panel "faol" ekanini belgilaymiz. */
+function syncRightRail(id) {
+  const rsb = document.getElementById('rsb');
+  const filterPanel = document.getElementById('rsb-filter-panel');
+  const detailPanel = document.getElementById('rsb-detail-panel');
+  if (!rsb || !filterPanel || !detailPanel) return;
+  const showFilter = id === 'murojaat', showDetail = id === 'cluster';
+  rsb.style.display = (showFilter || showDetail) ? '' : 'none';
+  filterPanel.hidden = !showFilter;
+  detailPanel.hidden = !showDetail;
 }
 
 /* ═══ TOKEN ═══ */
@@ -405,7 +426,7 @@ function showBrowserNotif(title, body, icon, onClick) {
 }
 /* initPushPermissionPrompt — app.js'da e'lon qilinadi (boot() shu yerda, ikki marta kerak emas) */
 
-window.IC=IC; window.esc=esc; window.escJs=escJs; window.initials=initials; window.fmtNum=fmtNum; window.fmtTime=fmtTime;
+window.IC=IC; window.esc=esc; window.escJs=escJs; window.initials=initials; window.fmtNum=fmtNum; window.fmtTime=fmtTime; window.fmtDate=fmtDate;
 window.debounce=debounce; window.spinner=spinner; window.emptyEl=emptyEl; window.toast=toast;
 window.avStyle=avStyle; window.avHtml=avHtml; window.copyLink=copyLink; window.fallbackCopy=fallbackCopy;
 window.CATEGORIES=CATEGORIES; window.catById=catById; window.catChip=catChip; window.STATUS_LABEL=STATUS_LABEL;

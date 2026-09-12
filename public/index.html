@@ -285,22 +285,28 @@
       <div id="sec-admin" class="section"><div id="admin-cnt"></div></div>
     </div>
 
-    <!-- FILTR PANELI (REDESIGN.md §3.3) — murojaatlar lentasini hudud/holat bo'yicha
-         filtrlaydi. Toifa filtri allaqachon lenta ustida (#category-filters) bor,
-         shu sabab bu yerda takrorlanmaydi. -->
+    <!-- O'NG PANEL — bo'lim (section) ga qarab mazmuni almashadi (goSec()dagi
+         syncRightRail() orqali): murojaatlar ro'yxatida filtr, murojaat
+         tafsilotida qo'llab-quvvatlash/biriktiruv/tarix, boshqa joyda yashirin. -->
     <aside id="rsb"><div id="rsb-inner">
-      <div class="rsb-card">
-        <div class="rsb-body">
-          <div class="rsb-title">🔍 Filtr</div>
-          <label class="rsb-label" for="rsb-region-sel">Hudud</label>
-          <select class="sel" id="rsb-region-sel" onchange="setMurojaatRegion(this.value)">
-            <option value="">Barcha hududlar</option>
-          </select>
-          <div class="rsb-label" style="margin-top:14px">Holat</div>
-          <div id="rsb-status-list"></div>
-          <button class="rsb-clear-btn" id="rsb-clear-btn" onclick="clearMurojaatFilters()" hidden>✕ Filtrlarni tozalash</button>
+      <!-- FILTR PANELI (REDESIGN.md §3.3) — hudud/holat. Toifa filtri
+           allaqachon lenta ustida (#category-filters) bor, takrorlanmaydi. -->
+      <div id="rsb-filter-panel">
+        <div class="rsb-card">
+          <div class="rsb-body">
+            <div class="rsb-title">🔍 Filtr</div>
+            <label class="rsb-label" for="rsb-region-sel">Hudud</label>
+            <select class="sel" id="rsb-region-sel" onchange="setMurojaatRegion(this.value)">
+              <option value="">Barcha hududlar</option>
+            </select>
+            <div class="rsb-label" style="margin-top:14px">Holat</div>
+            <div id="rsb-status-list"></div>
+            <button class="rsb-clear-btn" id="rsb-clear-btn" onclick="clearMurojaatFilters()" hidden>✕ Filtrlarni tozalash</button>
+          </div>
         </div>
       </div>
+      <!-- MUROJAAT TAFSILOTI PANELI (REDESIGN.md §3.4) — openCluster() to'ldiradi -->
+      <div id="rsb-detail-panel" hidden></div>
     </div></aside>
   </div>
 

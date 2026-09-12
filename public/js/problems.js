@@ -25,15 +25,14 @@ function setFeedCategory(catId) { _feedCategory = catId; loadCategoryFilters(); 
 /* ═══ FILTR PANELI — hudud + holat (REDESIGN.md §3.3) ═══
    Toifa filtri #category-filters'da (lenta ustida) allaqachon bor — bu yerda
    takrorlanmaydi, faqat u yerda yo'q ikki o'lcham qo'shiladi. */
-const MUROJAAT_STATUSES = [
-  { id: null,        label: 'Barchasi' },
-  { id: 'open',      label: '🟡 Ochiq' },
-  { id: 'resolved',  label: '✅ Hal qilingan' },
-  { id: 'closed',    label: '⚪ Yopilgan' },
-];
+/* STATUS_LABEL (core.js) dan olinadi — 2 joyda alohida ro'yxat yuritilsa, ular
+   vaqt o'tib bir-biridan farqlanib qolishi mumkin (4-status "yechim taklif
+   qilindi" shu sababdan filtrsiz qolib ketgan edi, endi tuzatildi). */
+const MUROJAAT_STATUS_ICON = { open:'🟡', solution_proposed:'💡', resolved:'✅', closed:'⚪' };
 function renderMurojaatStatusFilter() {
   const el = document.getElementById('rsb-status-list'); if (!el) return;
-  el.innerHTML = MUROJAAT_STATUSES.map(s => {
+  const statuses = [{ id: null, label: 'Barchasi' }, ...Object.keys(STATUS_LABEL).map(k => ({ id: k, label: `${MUROJAAT_STATUS_ICON[k]||''} ${STATUS_LABEL[k]}` }))];
+  el.innerHTML = statuses.map(s => {
     const active = _murojaatStatus === s.id;
     return `<button class="filter-chip${active?' active':''}" style="${active?'background:var(--tx1);border-color:var(--tx1)':''}" onclick="setMurojaatStatus(${s.id ? `'${s.id}'` : 'null'})">${s.label}</button>`;
   }).join('');
@@ -171,9 +170,11 @@ async function openCluster(id) {
   goSec('cluster');
   const cnt = document.getElementById('cluster-detail-cnt');
   cnt.innerHTML = spinner();
+  const railPanel = document.getElementById('rsb-detail-panel'); if (railPanel) railPanel.innerHTML = '';
   try {
     const c = await API.getCluster(id);
     renderClusterDetail(c);
+    renderClusterRail(c);
   } catch(e) { cnt.innerHTML = emptyEl('close','Topilmadi',e.message); }
 }
 
@@ -241,6 +242,45 @@ function renderClusterDetail(c) {
       </div>
     </div>`;
 }
+
+/* ═══ MUROJAAT TAFSILOTI — O'NG PANEL (REDESIGN.md §3.4: qo'llab-quvvatlash/
+   biriktiruv/tarix). Faqat haqiqiy ma'lumot — "biriktiruv" uchun hali
+   backend'da mas'ul/idora tayinlash funksiyasi yo'q (bu alohida, kelgusi
+   #32 "Rahbar paneli" ishi), shu sabab bu yerda soxta ism/idora o'ylab
+   topish o'rniga rostini — hali biriktirilmaganini — yozamiz. ═══ */
+function renderClusterRail(c) {
+  const panel = document.getElementById('rsb-detail-panel'); if (!panel) return;
+  panel.innerHTML = `
+    <div class="rsb-card">
+      <div class="rsb-body" style="text-align:center">
+        <div class="rail-support-num">${fmtNum(c.support_count)}</div>
+        <div class="rsb-label" style="margin-bottom:0">kishi qo'llab-quvvatladi</div>
+      </div>
+    </div>
+    <div class="rsb-card">
+      <div class="rsb-body">
+        <div class="rsb-stat"><span>Holat</span><span class="cl-status ${c.status}">${STATUS_LABEL[c.status]||c.status}</span></div>
+        <div class="rsb-stat"><span>Birlashtirilgan murojaatlar</span><strong>${fmtNum(c.problem_count)}</strong></div>
+        ${c.region_name?`<div class="rsb-stat"><span>Hudud</span><strong>${esc(c.region_name)}</strong></div>`:''}
+        ${c.school_name?`<div class="rsb-stat"><span>Maktab</span><strong>${esc(c.school_name)}</strong></div>`:''}
+      </div>
+    </div>
+    <div class="rsb-card">
+      <div class="rsb-body">
+        <div class="rsb-title" style="font-size:12.5px">🏷️ Biriktiruv</div>
+        <div style="font-size:12.5px;color:var(--ink-muted);line-height:1.5">Hali rasmiy idora yoki mas'ul shaxsga biriktirilmagan.</div>
+      </div>
+    </div>
+    <div class="rsb-card">
+      <div class="rsb-body">
+        <div class="rsb-title" style="font-size:12.5px;margin-bottom:12px">🕐 Tarix</div>
+        <div class="rail-timeline">
+          <div class="rail-tl-item"><span class="rail-tl-dot done"></span><div><div class="rail-tl-label">Yuborildi</div><div class="rail-tl-date">${fmtDate(c.created_at)}</div></div></div>
+          ${c.resolved_at ? `<div class="rail-tl-item"><span class="rail-tl-dot done"></span><div><div class="rail-tl-label">Hal qilindi</div><div class="rail-tl-date">${fmtDate(c.resolved_at)}</div></div></div>` : `<div class="rail-tl-item"><span class="rail-tl-dot"></span><div><div class="rail-tl-label" style="color:var(--ink-muted)">Hal qilinishi kutilmoqda</div></div></div>`}
+        </div>
+      </div>
+    </div>`;
+}
 function buildCommentHtml(cm) {
   return `<div class="comment-item" id="cmt-${cm.id}">
     <div class="av" style="${avStyle(cm,30)};border-radius:50%;flex-shrink:0">${avHtml(cm,30,11)}</div>
@@ -268,7 +308,8 @@ async function toggleSupport(id, btn, isDetail=false) {
   } catch(e) { toast(e.message); }
 }
 async function changeClusterStatus(id, status) {
-  try { await API.setClusterStatus(id, status); toast('Holat yangilandi'); } catch(e) { toast(e.message); }
+  try { await API.setClusterStatus(id, status); toast('Holat yangilandi'); openCluster(id); }
+  catch(e) { toast(e.message); }
 }
 async function submitComment(clusterId) {
   if (!requireAuth()) return;
@@ -394,7 +435,7 @@ function initProblemWS() {
 
 window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory; window.initHomepageExtras=initHomepageExtras;
 window.buildClusterCard=buildClusterCard; window.loadClusters=loadClusters; window.setMurojaatSort=setMurojaatSort; window.initMurojaatScrollFeed=initMurojaatScrollFeed;
-window.openCluster=openCluster; window.switchClusterTab=switchClusterTab; window.toggleSupport=toggleSupport; window.changeClusterStatus=changeClusterStatus;
+window.openCluster=openCluster; window.switchClusterTab=switchClusterTab; window.toggleSupport=toggleSupport; window.changeClusterStatus=changeClusterStatus; window.renderClusterRail=renderClusterRail;
 window.submitComment=submitComment; window.promptSolution=promptSolution; window.doGenerateSolutions=doGenerateSolutions;
 window.voteSolutionBtn=voteSolutionBtn; window.acceptSolutionBtn=acceptSolutionBtn;
 window.openSubmitProblem=openSubmitProblem; window.closeSubmitProblem=closeSubmitProblem; window.previewSubProbImg=previewSubProbImg; window.clearSubProbImg=clearSubProbImg; window.doSubmitProblem=doSubmitProblem;

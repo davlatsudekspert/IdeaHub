@@ -869,6 +869,22 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 #rsb-status-list .filter-chip{width:100%;justify-content:flex-start;margin-bottom:6px;}
 #rsb-status-list .filter-chip:last-child{margin-bottom:0;}
 
+/* Murojaat tafsiloti o'ng paneli (REDESIGN.md §3.4).
+   Diqqat: #rsb-detail-panel{display:flex} ID-selektori [hidden] atributining
+   standart UA-stilidan (display:none) kuchliroq — shu sabab hidden holatini
+   aniq qayta yozish kerak, aks holda syncRightRail() panelni "yashirsa" ham
+   u ekranda flex bo'lib turib qoladi (bo'limlar orasida almashganda eski
+   tarkib ko'rinib qoladigan xato shu yerdan chiqqan edi). */
+#rsb-detail-panel{display:flex;flex-direction:column;gap:10px;}
+#rsb-detail-panel[hidden]{display:none;}
+.rail-support-num{font-size:32px;font-weight:800;color:var(--gold-dk);font-family:'Plus Jakarta Sans',sans-serif;line-height:1.15;}
+.rail-timeline{display:flex;flex-direction:column;gap:14px;}
+.rail-tl-item{display:flex;align-items:flex-start;gap:10px;}
+.rail-tl-dot{width:9px;height:9px;border-radius:50%;background:var(--border-strong);flex-shrink:0;margin-top:4px;}
+.rail-tl-dot.done{background:var(--ok);}
+.rail-tl-label{font-size:12.5px;font-weight:700;color:var(--ink);}
+.rail-tl-date{font-size:11.5px;color:var(--ink-muted);margin-top:1px;}
+
 /* Selectlar (.sel) hozirgacha stilsiz edi — .inp bilan bir xil ko'rinish */
 .sel{
   width:100%; border-radius:var(--r); padding:10px 13px;
