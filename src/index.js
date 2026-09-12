@@ -863,9 +863,9 @@ async function route(request, env, ctx, p, q, m) {
   if (p === '/api/clusters' && m === 'GET') {
     const sort = q.get('sort') || 'hot';
     const offset = parseInt(q.get('offset')) || 0;
-    const region = q.get('region'); const category = q.get('category');
-    const rows = (region || category)
-      ? await Q.clByRegionCategory(region || null, category || null, offset, 25)
+    const region = q.get('region'); const category = q.get('category'); const status = q.get('status');
+    const rows = (region || category || status)
+      ? await Q.clFiltered(region || null, category || null, status || null, sort, offset, 25)
       : await Q.clFeed(sort, offset, 25);
     const userId = getAuth(request, env.SECRET);
     const out = [];

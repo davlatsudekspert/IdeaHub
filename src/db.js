@@ -82,12 +82,20 @@ export function makeQ(db) {
        WHERE cl.status != 'closed'
        ORDER BY ${sort === 'new' ? 'cl.created_at DESC' : sort === 'resolved' ? "cl.status='resolved' DESC, cl.resolved_at DESC" : 'cl.support_count DESC, cl.created_at DESC'}
        LIMIT ? OFFSET ?`, limit, offset),
-    clByRegionCategory: (region_id, category_id, offset, limit) => all(
-      `SELECT cl.*,cat.name as category_name,cat.color as category_color,cat.icon as category_icon
+    /* Filtr panel (REDESIGN.md §3.3): hudud/toifa/holat birga, sort saqlanadi.
+       clFeed'dan farqli — filtr faol bo'lganda 'closed'ni ham ko'rsatadi (aniq
+       so'ralgan holat bo'lsa uni yashirish noto'g'ri bo'lardi). clByRegionCategory
+       o'rnini bosadi (sort'ni e'tiborsiz qoldirib faqat support_count bo'yicha
+       saralar edi, status filtri yo'q edi). */
+    clFiltered: (region_id, category_id, status, sort, offset, limit) => all(
+      `SELECT cl.*,cat.name as category_name,cat.color as category_color,cat.icon as category_icon,
+          r.name as region_name, s.name as school_name
        FROM clusters cl LEFT JOIN categories cat ON cl.category_id=cat.id
-       WHERE (? IS NULL OR cl.region_id=?) AND (? IS NULL OR cl.category_id=?)
-       ORDER BY cl.support_count DESC LIMIT ? OFFSET ?`,
-      region_id || null, region_id || null, category_id || null, category_id || null, limit, offset),
+       LEFT JOIN regions r ON cl.region_id=r.id LEFT JOIN schools s ON cl.school_id=s.id
+       WHERE (? IS NULL OR cl.region_id=?) AND (? IS NULL OR cl.category_id=?) AND (? IS NULL OR cl.status=?)
+       ORDER BY ${sort === 'new' ? 'cl.created_at DESC' : sort === 'resolved' ? "cl.status='resolved' DESC, cl.resolved_at DESC" : 'cl.support_count DESC, cl.created_at DESC'}
+       LIMIT ? OFFSET ?`,
+      region_id || null, region_id || null, category_id || null, category_id || null, status || null, status || null, limit, offset),
     clProblems: (cluster_id) => all('SELECT p.*,u.username,u.name as uname,u.color,u.avatar FROM problems p JOIN users u ON p.user_id=u.id WHERE p.cluster_id=? AND p.is_deleted=0 ORDER BY p.created_at ASC', cluster_id),
 
     /* ── supports ── */

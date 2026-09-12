@@ -103,7 +103,7 @@ function buildClusterCard(c) {
 async function loadClusters(reset=true) {
   if (_murojaatBusy && !reset) return;
   _murojaatBusy = true;
-  const cnt = document.getElementById('feed-cnt'); if (!cnt) { _murojaatBusy=false; return; }
+  const cnt = document.getElementById('murojaat-feed-cnt'); if (!cnt) { _murojaatBusy=false; return; }
   if (reset) { _feedOffset = 0; cnt.innerHTML = spinner(); }
   try {
     const rows = await API.clusters(_murojaatSort, _feedOffset, { category: _feedCategory });
