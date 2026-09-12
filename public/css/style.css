@@ -759,6 +759,30 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 #app{display:none;min-height:100vh;flex-direction:column;overflow-x:hidden;}
 #app.vis{display:flex;}
 
+/* ═══ UTILITY BAR (REDESIGN.md §3.1) — bayroq lentasi ostida, header ustida ═══ */
+.utility-bar{
+  height:36px;background:var(--surface-alt);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:0 18px;font-size:12px;color:var(--ink-muted);flex-shrink:0;
+}
+.ub-left{display:flex;align-items:center;gap:12px;overflow:hidden;white-space:nowrap;min-width:0;}
+.ub-hotline{font-weight:700;color:var(--navy-900);flex-shrink:0;}
+.ub-tag{opacity:.85;overflow:hidden;text-overflow:ellipsis;}
+.ub-right{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.ub-btn{display:flex;align-items:center;gap:5px;height:26px;padding:0 8px;border-radius:6px;border:none;background:none;color:var(--ink-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .14s;}
+.ub-btn:hover{background:var(--surface);color:var(--ink);}
+.ub-btn.on{background:var(--gold-100);color:var(--gold-dk);}
+.ub-btn svg{width:14px!important;height:14px!important;}
+.ub-sep{width:1px;height:16px;background:var(--border-strong);flex-shrink:0;}
+.ub-lang{position:relative;}
+.ub-lang-dd{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--r);box-shadow:var(--shadow-lg);min-width:160px;display:none;z-index:400;overflow:hidden;}
+.ub-lang-dd.open{display:block;}
+.ub-lang-item{display:block;width:100%;text-align:left;padding:9px 13px;font-size:12.5px;color:var(--ink);background:none;border:none;cursor:pointer;}
+.ub-lang-item:hover{background:var(--surface-alt);}
+.ub-lang-item.active{color:var(--gold-dk);font-weight:700;}
+@media(max-width:680px){ .ub-tag{display:none;} }
+@media(max-width:460px){ .utility-bar{padding:0 10px;} .ub-hotline{font-size:11px;} .ub-btn span.ub-btn-label{display:none;} }
+
 /* TOPBAR */
 #topbar{
   height:var(--tb-h);background:var(--surface);
@@ -1098,6 +1122,43 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 /* REPORT REASONS */
 .report-reason-btn{display:inline-flex;align-items:center;margin:3px 4px 3px 0;padding:6px 14px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--bg2);color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
 .report-reason-btn:hover,.report-reason-btn.selected{border-color:var(--gold);background:var(--gold-soft);color:var(--gold-dk);}
+
+/* ═══ FOOTER (REDESIGN.md §3.1 / §3.2.10) ═══ */
+.site-footer{background:var(--navy-900);color:rgba(255,255,255,.75);margin-top:40px;position:relative;flex-shrink:0;}
+.site-footer::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(to right,#0099B5 0% 30%,#CE1126 30% 35%,#FFFFFF 35% 65%,#CE1126 65% 70%,#1EB53A 70% 100%);
+}
+.sf-inner{max-width:1200px;margin:0 auto;padding:36px 24px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:26px;}
+.sf-col h4{color:#fff;font-size:12.5px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;}
+.sf-col a{display:block;color:rgba(255,255,255,.68);font-size:13px;padding:4px 0;cursor:pointer;transition:color .14s;}
+.sf-col a:hover{color:var(--gold-lt);}
+.sf-bottom{border-top:1px solid rgba(255,255,255,.12);padding:14px 24px;max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:11.5px;color:rgba(255,255,255,.5);}
+@media(max-width:800px){ .sf-inner{grid-template-columns:repeat(2,1fr);} }
+@media(max-width:460px){ .sf-inner{grid-template-columns:1fr;gap:20px;} }
+@media(max-width:600px){ .site-footer{margin-bottom:58px;} }
+
+/* ═══ ACCESSIBILITY MODE (REDESIGN.md §3.1) — html[data-a11y="on"] ═══
+   Sof qora/oq, kattaroq matn, dekorativ elementlar o'chadi, kuchli fokus halqasi. */
+html[data-a11y="on"]{ zoom:1.28; }
+[data-a11y="on"] { --canvas:#FFFFFF; --bg:#FFFFFF; --surface:#FFFFFF; --surface-alt:#F2F2F2; --bg2:#F2F2F2; --bg3:#E8E8E8;
+  --border:#000000; --border-strong:#000000; --border2:#000000;
+  --ink:#000000; --ink-muted:#1A1A1A; --tx1:#000000; --tx2:#000000; --tx3:#1A1A1A; --tx4:#1A1A1A;
+  --gold:#000000; --gold-lt:#333333; --gold-dk:#000000; --gold-100:#F2F2F2; --gold-soft:#F2F2F2; --gold-bd:#000000;
+  --navy-900:#000000; --navy-800:#000000; --navy-700:#000000; --navy-500:#000000;
+}
+[data-a11y="on"] .flag-ribbon,
+[data-a11y="on"] body::before,
+[data-a11y="on"] .auth-left::before,
+[data-a11y="on"] .auth-left::after,
+[data-a11y="on"] .hero-band{ display:none!important; }
+[data-a11y="on"] a,
+[data-a11y="on"] .post-com-link strong,
+[data-a11y="on"] .sr-user-name,
+[data-a11y="on"] .lsb-btn,
+[data-a11y="on"] .sf-col a{ text-decoration:underline!important; }
+[data-a11y="on"] :focus-visible{ outline:3px solid #000!important; outline-offset:2px!important; }
+[data-a11y="on"] .btn-gold{ color:#fff!important; }
 
 /* ═══════════════════════════════════════════════════════════
    MindHub — Responsive CSS

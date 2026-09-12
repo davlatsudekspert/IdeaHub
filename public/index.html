@@ -23,6 +23,31 @@
 <body>
 <div class="flag-ribbon" aria-hidden="true"></div>
 
+<!-- UTILITY BAR (REDESIGN.md §3.1) — global, auth va app holatida ham ko'rinadi -->
+<div class="utility-bar">
+  <div class="ub-left">
+    <span class="ub-hotline">📞 Ishonch telefoni: 1006</span>
+    <span class="ub-tag">O'zbekiston Respublikasi yoshlari uchun</span>
+  </div>
+  <div class="ub-right">
+    <button class="ub-btn" id="a11y-btn" onclick="toggleA11y()" title="Maxsus imkoniyatlar rejimi" aria-label="Maxsus imkoniyatlar rejimi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="8" r="1"/><path d="M8 12h8"/><path d="M12 12v6"/><path d="M9 21l3-3 3 3"/></svg>
+      <span class="ub-btn-label">Maxsus imkoniyatlar</span>
+    </button>
+    <div class="ub-sep"></div>
+    <div class="ub-lang">
+      <button class="ub-btn" onclick="toggleLangDD(event)" title="Tilni tanlash" aria-label="Tilni tanlash"><span class="ub-btn-label" id="ub-lang-label">O'zbekcha</span> ▾</button>
+      <div class="ub-lang-dd" id="ub-lang-dd">
+        <button class="ub-lang-item active" data-lang="uz-latin" onclick="selectLang('uz-latin',this)">O'zbekcha</button>
+        <button class="ub-lang-item" data-lang="uz-cyrl" onclick="selectLang('uz-cyrl',this)">Ўзбекча</button>
+        <button class="ub-lang-item" data-lang="ru" onclick="selectLang('ru',this)">Русский</button>
+      </div>
+    </div>
+    <div class="ub-sep"></div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Mavzuni almashtirish" aria-label="Mavzuni almashtirish" style="width:26px;height:26px;border:none;background:none"></button>
+  </div>
+</div>
+
 <!-- AUTH MODAL -->
 <div id="auth-modal" class="overlay">
   <div class="modal" style="max-width:440px">
@@ -113,17 +138,13 @@
       <input id="tb-search-inp" type="search" placeholder="Qidirish..." oninput="onTopSearch(event)" autocomplete="off" aria-label="Qidirish">
     </div>
     <div class="tb-right">
-      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Mavzuni almashtirish" aria-label="Mavzuni almashtirish"></button>
-      <button class="tb-ico" onclick="requireAuth(()=>{goSec('notifs');loadNotifs();markNotifs();})" title="Bildirishnomalar">
+      <button class="tb-ico" onclick="requireAuth(()=>{goSec('notifs');loadNotifs();markNotifs();})" title="Bildirishnomalar" aria-label="Bildirishnomalar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         <span class="tb-notif-dot" id="notif-dot"></span>
       </button>
-      <button class="tb-ico" onclick="requireAuth(()=>{goSec('msgs');loadConvos();})" title="Xabarlar" aria-label="Xabarlar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-      </button>
-      <button class="tb-post-btn" onclick="requireAuth(()=>openSubmit())">
+      <button class="tb-post-btn" onclick="requireAuth(()=>openSubmitProblem())">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Post
+        Muammo ko'tarish
       </button>
       <div class="tb-av-wrap" onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">
         <div class="av tb-av" id="tb-av"></div>
@@ -311,6 +332,40 @@
 
     <aside id="rsb"><div id="rsb-inner"></div></aside>
   </div>
+
+  <!-- FOOTER (REDESIGN.md §3.1 / §3.2.10) -->
+  <footer class="site-footer">
+    <div class="sf-inner">
+      <div class="sf-col">
+        <h4>Platforma</h4>
+        <a onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">Shaxsiy kabinet</a>
+        <a onclick="goSec('murojaat');loadClusters(true)">Murojaatlar</a>
+        <a onclick="goSec('popular');loadTopComs()">Yo'nalishlar</a>
+      </div>
+      <div class="sf-col">
+        <h4>Yo'nalishlar</h4>
+        <a onclick="goSec('murojaat');setFeedCategory('talim')">Ta'lim infratuzilmasi</a>
+        <a onclick="goSec('murojaat');setFeedCategory('yol-xavfsizligi')">Yo'l xavfsizligi</a>
+        <a onclick="goSec('murojaat');setFeedCategory('ekologiya')">Ekologiya va tozalik</a>
+        <a onclick="goSec('murojaat');setFeedCategory('ijtimoiy')">Ijtimoiy xizmatlar</a>
+      </div>
+      <div class="sf-col">
+        <h4>Hujjatlar</h4>
+        <a onclick="toast('Tez orada')">Foydalanish shartlari</a>
+        <a onclick="toast('Tez orada')">Maxfiylik siyosati</a>
+        <a onclick="toast('Tez orada')">Ochiqlik reytingi</a>
+      </div>
+      <div class="sf-col">
+        <h4>Aloqa</h4>
+        <a>📞 Ishonch telefoni: 1006</a>
+        <a>✉️ info@mindhub.uz</a>
+      </div>
+    </div>
+    <div class="sf-bottom">
+      <span>© 2026 MindHub — O'zbekiston Respublikasi</span>
+      <span>Barcha imkoniyat toifalari uchun moslashtirilgan</span>
+    </div>
+  </footer>
 </div>
 
 <!-- SUBMIT POST -->

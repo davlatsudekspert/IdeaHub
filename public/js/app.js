@@ -166,6 +166,40 @@ function updateThemeBtn(){
   const btn=document.getElementById('theme-btn'); if(btn) btn.innerHTML=isDark?IC.sun:IC.moon;
 }
 
+/* ═══ MAXSUS IMKONIYATLAR REJIMI (REDESIGN.md §3.1) ═══
+   CSS px-asosida yozilgani uchun "20px asosiy shrift" ni html{zoom:1.28}
+   orqali — butun sahifani proportsional kattalashtirish — amalga oshiramiz;
+   token qiymatlari esa sof qora/oq'ga almashadi (style.css [data-a11y="on"]). */
+function applyA11y(on){
+  if (on) document.documentElement.setAttribute('data-a11y', 'on');
+  else document.documentElement.removeAttribute('data-a11y');
+  document.getElementById('a11y-btn')?.classList.toggle('on', on);
+}
+function toggleA11y(){
+  const on = !document.documentElement.hasAttribute('data-a11y');
+  applyA11y(on);
+  localStorage.setItem('ih_a11y', on ? '1' : '0');
+  toast(on ? 'Maxsus imkoniyatlar rejimi yoqildi' : 'Maxsus imkoniyatlar rejimi o\'chirildi');
+}
+
+/* ═══ TIL ALMASHTIRGICH ═══
+   Hozircha faqat o'zbekcha (lotin) kontent mavjud — boshqa tillar uchun
+   to'liq tarjima keyingi bosqich. Tanlov saqlanadi, UI xolis ishlaydi. */
+const LANG_LABELS = { 'uz-latin': "O'zbekcha", 'uz-cyrl': 'Ўзбекча', 'ru': 'Русский' };
+function toggleLangDD(e){ e?.stopPropagation(); document.getElementById('ub-lang-dd')?.classList.toggle('open'); }
+function selectLang(code, btn, silent){
+  document.querySelectorAll('.ub-lang-item').forEach(b=>b.classList.remove('active'));
+  (btn || document.querySelector(`.ub-lang-item[data-lang="${code}"]`))?.classList.add('active');
+  document.getElementById('ub-lang-dd')?.classList.remove('open');
+  const lbl = document.getElementById('ub-lang-label'); if (lbl) lbl.textContent = LANG_LABELS[code] || code;
+  localStorage.setItem('ih_lang', code);
+  if (code !== 'uz-latin' && !silent) toast("Bu til uchun tarjima tez orada qo'shiladi — hozircha o'zbekcha (lotin) ko'rsatiladi");
+}
+document.addEventListener('click', e => {
+  const dd = document.getElementById('ub-lang-dd');
+  if (dd && dd.classList.contains('open') && !e.target.closest('.ub-lang')) dd.classList.remove('open');
+});
+
 /* ═══ CHIQISH ═══ */
 function doLogout(){ tokClear();Tok.clr();WS.disconnect();window._me=null;location.reload(); }
 
@@ -331,6 +365,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const savedTheme = localStorage.getItem('ih_theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
   updateThemeBtn();
+  applyA11y(localStorage.getItem('ih_a11y') === '1');
+  const savedLang = localStorage.getItem('ih_lang');
+  if (savedLang && savedLang !== 'uz-latin') selectLang(savedLang, null, true);
   const tok = tokLoad();
   if (tok) {
     Tok.set(tok);
@@ -345,6 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.showAuthModal=showAuthModal; window.closeAuthModal=closeAuthModal; window.switchAmTab=switchAmTab; window.requireAuth=requireAuth;
 window.doAmLogin=doAmLogin; window.doAmReg=doAmReg; window.doSendCode=doSendCode; window.doVerifyAndReset=doVerifyAndReset;
 window.onTelegramAuth=onTelegramAuth; window.finishTgReg=finishTgReg; window.initTelegramWidget=initTelegramWidget;
+window.toggleA11y=toggleA11y; window.toggleLangDD=toggleLangDD; window.selectLang=selectLang;
 window.syncTopbar=syncTopbar; window.boot=boot; window.toggleTheme=toggleTheme; window.doLogout=doLogout;
 window.openUser=openUser; window.uploadAvatar=uploadAvatar; window.loadSettings=loadSettings; window.saveProfile=saveProfile; window.doChpass=doChpass;
 window.loadNotifCount=loadNotifCount; window.loadNotifs=loadNotifs; window.markNotifs=markNotifs;
