@@ -285,7 +285,23 @@
       <div id="sec-admin" class="section"><div id="admin-cnt"></div></div>
     </div>
 
-    <aside id="rsb"><div id="rsb-inner"></div></aside>
+    <!-- FILTR PANELI (REDESIGN.md §3.3) — murojaatlar lentasini hudud/holat bo'yicha
+         filtrlaydi. Toifa filtri allaqachon lenta ustida (#category-filters) bor,
+         shu sabab bu yerda takrorlanmaydi. -->
+    <aside id="rsb"><div id="rsb-inner">
+      <div class="rsb-card">
+        <div class="rsb-body">
+          <div class="rsb-title">🔍 Filtr</div>
+          <label class="rsb-label" for="rsb-region-sel">Hudud</label>
+          <select class="sel" id="rsb-region-sel" onchange="setMurojaatRegion(this.value)">
+            <option value="">Barcha hududlar</option>
+          </select>
+          <div class="rsb-label" style="margin-top:14px">Holat</div>
+          <div id="rsb-status-list"></div>
+          <button class="rsb-clear-btn" id="rsb-clear-btn" onclick="clearMurojaatFilters()" hidden>✕ Filtrlarni tozalash</button>
+        </div>
+      </div>
+    </div></aside>
   </div>
 
   <!-- FOOTER (REDESIGN.md §3.1 / §3.2.10) -->

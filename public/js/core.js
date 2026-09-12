@@ -186,7 +186,7 @@ const API = {
   searchProblems:(q) => api('GET','/problems/search?q='+encodeURIComponent(q)),
   getProblem:(id) => api('GET','/problems/'+id),
   delProblem:(id) => api('DELETE','/problems/'+id),
-  clusters:(sort,offset,filters={}) => api('GET',`/clusters?sort=${sort}&offset=${offset||0}${filters.region?'&region='+filters.region:''}${filters.category?'&category='+filters.category:''}`),
+  clusters:(sort,offset,filters={}) => api('GET',`/clusters?sort=${sort}&offset=${offset||0}${filters.region?'&region='+filters.region:''}${filters.category?'&category='+filters.category:''}${filters.status?'&status='+filters.status:''}`),
   getCluster:(id) => api('GET','/clusters/'+id),
   support:(id) => api('POST','/clusters/'+id+'/support'),
   setClusterStatus:(id,status) => api('POST','/clusters/'+id+'/status',{status}),

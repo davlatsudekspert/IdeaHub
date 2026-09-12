@@ -863,6 +863,19 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .rsb-stat:last-child{border-bottom:none;}
 .rsb-stat strong{color:var(--tx1);font-weight:700;}
 .rsb-body .btn svg{width:13px!important;height:13px!important;}
+.rsb-label{display:block;font-size:11.5px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+.rsb-clear-btn{width:100%;margin-top:12px;padding:8px;border-radius:var(--r);border:1px dashed var(--border-strong);background:none;color:var(--ink-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.rsb-clear-btn:hover{border-color:var(--danger);color:var(--danger);}
+#rsb-status-list .filter-chip{width:100%;justify-content:flex-start;margin-bottom:6px;}
+#rsb-status-list .filter-chip:last-child{margin-bottom:0;}
+
+/* Selectlar (.sel) hozirgacha stilsiz edi — .inp bilan bir xil ko'rinish */
+.sel{
+  width:100%; border-radius:var(--r); padding:10px 13px;
+  background:var(--surface); border:1px solid var(--border2);
+  color:var(--tx1); font-size:14px; cursor:pointer; transition:all .18s;
+}
+.sel:focus{border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-soft);}
 
 /* COMMUNITY PAGE */
 .com-page-hd{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:10px;box-shadow:var(--shadow);}

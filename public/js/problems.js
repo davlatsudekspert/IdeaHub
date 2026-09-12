@@ -1,5 +1,6 @@
 'use strict';
 let _murojaatSort = 'hot', _feedOffset = 0, _murojaatBusy = false, _feedCategory = null;
+let _murojaatRegion = null, _murojaatStatus = null;
 let _regionsCache = null;
 let _curClusterId = null, _curClusterTab = 'problems';
 
@@ -20,6 +21,37 @@ function loadCategoryFilters() {
     CATEGORIES.map(c => `<button class="filter-chip${_feedCategory===c.id?' active':''}" style="${_feedCategory===c.id?`background:${c.color};border-color:${c.color}`:''};color:${_feedCategory===c.id?'#fff':c.color}" onclick="setFeedCategory('${c.id}')">${c.icon} ${esc(c.name)}</button>`).join('');
 }
 function setFeedCategory(catId) { _feedCategory = catId; loadCategoryFilters(); loadClusters(true); }
+
+/* ═══ FILTR PANELI — hudud + holat (REDESIGN.md §3.3) ═══
+   Toifa filtri #category-filters'da (lenta ustida) allaqachon bor — bu yerda
+   takrorlanmaydi, faqat u yerda yo'q ikki o'lcham qo'shiladi. */
+const MUROJAAT_STATUSES = [
+  { id: null,        label: 'Barchasi' },
+  { id: 'open',      label: '🟡 Ochiq' },
+  { id: 'resolved',  label: '✅ Hal qilingan' },
+  { id: 'closed',    label: '⚪ Yopilgan' },
+];
+function renderMurojaatStatusFilter() {
+  const el = document.getElementById('rsb-status-list'); if (!el) return;
+  el.innerHTML = MUROJAAT_STATUSES.map(s => {
+    const active = _murojaatStatus === s.id;
+    return `<button class="filter-chip${active?' active':''}" style="${active?'background:var(--tx1);border-color:var(--tx1)':''}" onclick="setMurojaatStatus(${s.id ? `'${s.id}'` : 'null'})">${s.label}</button>`;
+  }).join('');
+  syncFilterClearBtn();
+}
+function syncFilterClearBtn() {
+  const btn = document.getElementById('rsb-clear-btn'); if (!btn) return;
+  btn.hidden = !(_murojaatRegion || _murojaatStatus);
+}
+function setMurojaatRegion(regionId) { _murojaatRegion = regionId || null; syncFilterClearBtn(); loadClusters(true); }
+function setMurojaatStatus(status) { _murojaatStatus = status; renderMurojaatStatusFilter(); loadClusters(true); }
+function clearMurojaatFilters() {
+  _murojaatRegion = null; _murojaatStatus = null;
+  const sel = document.getElementById('rsb-region-sel'); if (sel) sel.value = '';
+  renderMurojaatStatusFilter();
+  loadClusters(true);
+}
+function initFilterRail() { loadRegionsInto(['rsb-region-sel']); renderMurojaatStatusFilter(); }
 
 /* ═══ BOSH SAHIFA — hero/statistika/Yo'nalishlar/hududlar (REDESIGN.md §3.2) ═══
    Bittasi ishlamasa ham qolganlari ko'rinishi uchun har biri alohida try/catch'da. */
@@ -106,9 +138,15 @@ async function loadClusters(reset=true) {
   const cnt = document.getElementById('murojaat-feed-cnt'); if (!cnt) { _murojaatBusy=false; return; }
   if (reset) { _feedOffset = 0; cnt.innerHTML = spinner(); }
   try {
-    const rows = await API.clusters(_murojaatSort, _feedOffset, { category: _feedCategory });
+    const rows = await API.clusters(_murojaatSort, _feedOffset, { category: _feedCategory, region: _murojaatRegion, status: _murojaatStatus });
     if (reset) cnt.innerHTML = '';
-    if (!rows.length && reset) { cnt.innerHTML = emptyEl('lightbulb', "Hali murojaat yo'q", "Birinchi murojaatni siz yuboring!"); _murojaatBusy=false; return; }
+    if (!rows.length && reset) {
+      const filtered = _feedCategory || _murojaatRegion || _murojaatStatus;
+      cnt.innerHTML = filtered
+        ? emptyEl('search', "Bu filtrlarga mos murojaat topilmadi", "Boshqa hudud yoki holatni tanlab ko'ring.")
+        : emptyEl('lightbulb', "Hali murojaat yo'q", "Birinchi murojaatni siz yuboring!");
+      _murojaatBusy=false; return;
+    }
     rows.forEach((c,i) => { const d=document.createElement('div'); d.innerHTML=buildClusterCard(c); const el=d.firstElementChild; el.style.animation=`fadeUp .3s ease ${i*.03}s both`; cnt.appendChild(el); });
     _feedOffset += rows.length;
   } catch(e) { if (reset) cnt.innerHTML = emptyEl('close','Xatolik',e.message); }
@@ -361,3 +399,4 @@ window.submitComment=submitComment; window.promptSolution=promptSolution; window
 window.voteSolutionBtn=voteSolutionBtn; window.acceptSolutionBtn=acceptSolutionBtn;
 window.openSubmitProblem=openSubmitProblem; window.closeSubmitProblem=closeSubmitProblem; window.previewSubProbImg=previewSubProbImg; window.clearSubProbImg=clearSubProbImg; window.doSubmitProblem=doSubmitProblem;
 window.loadMyProblems=loadMyProblems; window.initProblemWS=initProblemWS;
+window.setMurojaatRegion=setMurojaatRegion; window.setMurojaatStatus=setMurojaatStatus; window.clearMurojaatFilters=clearMurojaatFilters; window.initFilterRail=initFilterRail;
