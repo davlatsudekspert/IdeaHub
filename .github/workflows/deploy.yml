@@ -25,7 +25,7 @@ jobs:
       - name: Node o'rnatish
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Bog'liqliklarni o'rnatish
         run: npm ci
