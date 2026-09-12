@@ -1,0 +1,34 @@
+name: Deploy to Cloudflare
+
+# `main`ga push qilinganda avtomatik deploy bo'ladi. Boshqa branch'lardan ham
+# qo'lda ishga tushirish mumkin (Actions -> Deploy to Cloudflare -> Run workflow).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: cloudflare-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: Node o'rnatish
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Bog'liqliklarni o'rnatish
+        run: npm ci
+
+      - name: D1 migratsiyalarini qo'llash (production) va deploy qilish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          preCommands: npx wrangler d1 migrations apply mindhub-db --remote
+          command: deploy

@@ -86,6 +86,25 @@ Sayt `https://mindhub.<sizning-subdomain>.workers.dev` manzilida ishga
 tushadi. O'z domeningizni ulash uchun Cloudflare Dashboard → Workers →
 mindhub → Settings → Domains & Routes.
 
+## 5.1. Avtomatik deploy (GitHub Actions)
+
+`main` branch'ga push qilinganda `.github/workflows/deploy.yml` avtomatik
+ravishda D1 migratsiyalarini qo'llaydi va `wrangler deploy`ni ishga tushiradi
+— bu qadamlarni qo'lda takrorlash shart emas. Ishga tushishi uchun **bir
+martalik** sozlash kerak:
+
+1. Cloudflare Dashboard → profil belgingiz → **My Profile → API Tokens →
+   Create Token**. "Edit Cloudflare Workers" shablonidan foydalaning
+   (hisobingizni tanlang). Agar deploy keyinroq ruxsat xatosi bersa, tokenga
+   qo'shimcha ravishda **Account → D1 → Edit** va
+   **Account → Workers R2 Storage → Edit** ruxsatlarini qo'shing.
+2. GitHub'da: repo → **Settings → Secrets and variables → Actions →
+   New repository secret** → nomi `CLOUDFLARE_API_TOKEN`, qiymati —
+   1-qadamda olingan token.
+3. Shu bilan tugadi — keyingi `main`ga push avtomatik deploy qiladi.
+   Boshqa branch'dan qo'lda ishga tushirish uchun: GitHub → **Actions →
+   Deploy to Cloudflare → Run workflow**.
+
 ## 6. Mahalliy ishlab chiqish
 
 ```bash
@@ -96,17 +115,39 @@ npm run db:migrate:local
 npm run db:seed:local
 ```
 
+## Telegram bilan kirish (ixtiyoriy)
+
+Login Widget orqali ishlaydi — bot bilan gaplashish (webhook/polling) shart
+emas, faqat vidjet imzosini tekshiramiz:
+
+```bash
+npx wrangler secret put TG_BOT_TOKEN
+```
+
+`wrangler.toml`dagi `TG_BOT_NAME` (`mind_hubbot`) shu tokenga mos bot
+username bo'lishi kerak. Token qo'yilmaguncha login oynasida "Telegram
+orqali kirish" tugmasi ko'rinmaydi (`/api/config` uni avtomatik yashiradi),
+qo'yilgach frontend uni o'zi aniqlab ko'rsatadi — qo'shimcha kod
+o'zgartirish shart emas.
+
 ## Nima kiritilmagan (keyingi bosqich uchun)
 
-- **Telegram bot/login** — eski ilovada bor edi, lekin taqdimotda
-  so'ralmagan va Cloudflare Workers'ning so'rov-asosidagi modeliga
-  moslashtirish (webhook + Durable Object) qo'shimcha ish talab qiladi.
-  Sxemada `users.tg_chat_id`/`tg_id` ustunlari kelajak uchun saqlab qo'yilgan.
 - **AI klasterlash** hozircha oxirgi 8 ta ochiq klaster bilan
   taqqoslaydi (promptga sig'dirish uchun). Murojaatlar soni ko'payganda
   vektorli qidiruv (embeddings) ga o'tish tavsiya etiladi.
+- Onboarding kaskadi (viloyat→tuman→maktab), yopiq halqa (natija/tasdiq),
+  Rahbar paneli, Admin paneli+TOTP, xarita — taqdimot brifidagi keyingi
+  bosqichlar, hali boshlanmagan.
 
 ## Arxitektura xulosasi
+
+Ilova ikkita oqimni bitta platformada birlashtiradi: **jamoalar/post/ovoz/
+izoh/xabar/qo'ng'iroq** (eski Reddit-uslubidagi MindHub'dan tiklangan,
+doimiy asosiy funksiya) va **Murojaat → AI tahlil → klaster → yechim**
+(taqdimotdagi fuqarolik oqimi) — ikkalasi ham bitta D1 bazasi va bitta
+sahifada ishlaydi, AI esa ikkala joyda ham bor: postlarni fon rejimida
+mavzu bo'yicha teglaydi va murojaatlarni toifalab klasterlaydi/yechim
+taklif qiladi.
 
 | Eski (Node/Postgres/Railway) | Yangi (Cloudflare) |
 |---|---|
@@ -115,4 +156,3 @@ npm run db:seed:local
 | `pg` drayveri, Postgres SQL | D1 (SQLite), `env.DB.prepare()` |
 | Diskka fayl yozish (`data/uploads/`) | R2 obyekt xotirasi |
 | `nodemailer` SMTP | Resend HTTP API |
-| Jamoalar/post/ovoz (Reddit uslubi) | Murojaat → AI tahlil → klaster → yechim |
