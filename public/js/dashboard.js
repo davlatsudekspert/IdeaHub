@@ -73,7 +73,7 @@ function renderAdminTabContent(d) {
             ${u.role!=='user'?`<span style="font-size:10px;background:var(--gold-soft);color:var(--gold-dk);padding:1px 6px;border-radius:10px">${u.role==='admin'?'👑 Admin':'🧭 Rahbar'}</span>`:''}
             ${u.is_banned?'<span style="font-size:10px;background:rgba(217,64,64,.12);color:var(--red);padding:1px 6px;border-radius:10px">🚫 Bloklangan</span>':''}
           </div>
-          <div style="font-size:11px;color:var(--tx4)">u/${esc(u.username)}</div>
+          <div style="font-size:11px;color:var(--tx4)">@${esc(u.username)}</div>
         </div>
         <div style="display:flex;gap:4px;flex-shrink:0">
           <select class="sel" style="width:auto;padding:4px 6px;font-size:11px" onchange="adminSetRole('${u.id}',this.value)">

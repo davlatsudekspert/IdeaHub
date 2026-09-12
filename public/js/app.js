@@ -360,7 +360,7 @@ async function doSearch(q){
     const d=await API.search(q,'all');
     el.innerHTML='';
     let has=false;
-    if(d.users?.length){ has=true; el.innerHTML+=`<div class="sr-hd">Foydalanuvchilar</div>`; d.users.forEach(u=>{ el.innerHTML+=`<div class="sr-user" onclick="openUser('${escJs(u.username)}')"><div class="av" style="${avStyle(u,40)};border-radius:50%">${avHtml(u,40,14)}</div><div><div class="sr-user-name">${esc(u.name||u.username)}</div><div class="sr-user-sub">u/${esc(u.username)}</div></div></div>`; }); }
+    if(d.users?.length){ has=true; el.innerHTML+=`<div class="sr-hd">Foydalanuvchilar</div>`; d.users.forEach(u=>{ el.innerHTML+=`<div class="sr-user" onclick="openUser('${escJs(u.username)}')"><div class="av" style="${avStyle(u,40)};border-radius:50%">${avHtml(u,40,14)}</div><div><div class="sr-user-name">${esc(u.name||u.username)}</div><div class="sr-user-sub">@${esc(u.username)}</div></div></div>`; }); }
     if(d.problems?.length){ has=true; el.innerHTML+=`<div class="sr-hd">Murojaatlar</div>`; d.problems.forEach(p=>{ el.innerHTML+=`<div class="sr-user" onclick="${p.cluster_id?`openCluster('${p.cluster_id}')`:''}"><div style="flex:1"><div class="sr-user-name">${esc(p.title)}</div><div class="sr-user-sub">${p.ago||''}</div></div></div>`; }); }
     if(!has) el.innerHTML=emptyEl('search',`"${q}" bo'yicha hech narsa topilmadi`);
   }catch(e){el.innerHTML=emptyEl('close','Xatolik',e.message);}
