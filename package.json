@@ -1,16 +1,21 @@
 {
   "name": "mindhub",
-  "version": "1.0.0",
-  "description": "MindHub - O'zbek Reddit",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "MindHub — yoshlar boshqaradigan, AI asosidagi fuqarolik tashabbuslari platformasi (Cloudflare Workers)",
+  "private": true,
   "scripts": {
-    "start": "node server.js"
+    "dev": "wrangler dev --local",
+    "db:migrate:local": "wrangler d1 migrations apply mindhub-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply mindhub-db --remote",
+    "db:seed:local": "wrangler d1 execute mindhub-db --local --file=./migrations/seed.sql",
+    "db:seed:remote": "wrangler d1 execute mindhub-db --remote --file=./migrations/seed.sql",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
   },
-  "dependencies": {
-    "nodemailer": "^9.0.5",
-    "pg": "^8.13.1"
+  "devDependencies": {
+    "wrangler": "^4.0.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=18.0.0"
   }
 }
