@@ -31,19 +31,19 @@ async function openCommunity(slug) {
             <div class="com-hd-sub">${esc(com.slug)} &middot; ${fmtNum(com.members)} a'zo &middot; 👁 ${fmtNum(com.views||0)}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
-            ${com.is_owner ? `<button class="btn btn-ghost" style="padding:7px 13px;font-size:12px" onclick="editCom('${esc(com.slug)}')">⚙ Sozlash</button>
-              <button class="btn btn-danger" style="padding:7px 13px;font-size:12px" onclick="openDeleteCom('${esc(com.slug)}','${esc(com.name)}')">🗑️ O'chirish</button>` : ''}
-            ${com.is_owner ? `<button class="btn btn-ghost" style="padding:7px 13px;font-size:12px" onclick="openComAdmins('${esc(com.slug)}')">👥 Boshqarish</button>` : ''}
-            ${com.is_member ? `<button class="btn btn-outline" id="jb-${esc(com.id)}" onclick="toggleJoin('${esc(com.slug)}','${esc(com.id)}',this)">${IC.check} A'zo</button>`
+            ${com.is_owner ? `<button class="btn btn-ghost" style="padding:7px 13px;font-size:12px" onclick="editCom('${escJs(com.slug)}')">⚙ Sozlash</button>
+              <button class="btn btn-danger" style="padding:7px 13px;font-size:12px" onclick="openDeleteCom('${escJs(com.slug)}','${escJs(com.name)}')">🗑️ O'chirish</button>` : ''}
+            ${com.is_owner ? `<button class="btn btn-ghost" style="padding:7px 13px;font-size:12px" onclick="openComAdmins('${escJs(com.slug)}')">👥 Boshqarish</button>` : ''}
+            ${com.is_member ? `<button class="btn btn-outline" id="jb-${esc(com.id)}" onclick="toggleJoin('${escJs(com.slug)}','${escJs(com.id)}',this)">${IC.check} A'zo</button>`
               : com.pending_request ? `<button class="btn btn-ghost" disabled style="padding:7px 13px;font-size:12px">⏳ Kutilmoqda</button>`
-              : com.is_private ? `<button class="btn btn-gold" onclick="toggleJoin('${esc(com.slug)}','${esc(com.id)}',this)">📩 So'rov yuborish</button>`
-              : `<button class="btn btn-gold" id="jb-${esc(com.id)}" onclick="toggleJoin('${esc(com.slug)}','${esc(com.id)}',this)">${IC.plus} Qo'shilish</button>`}
+              : com.is_private ? `<button class="btn btn-gold" onclick="toggleJoin('${escJs(com.slug)}','${escJs(com.id)}',this)">📩 So'rov yuborish</button>`
+              : `<button class="btn btn-gold" id="jb-${esc(com.id)}" onclick="toggleJoin('${escJs(com.slug)}','${escJs(com.id)}',this)">${IC.plus} Qo'shilish</button>`}
           </div>
         </div>
         ${com.description ? `<div style="padding:0 18px 14px;font-size:13px;color:var(--tx3)">${esc(com.description)}</div>` : ''}
         ${com.admins?.length ? `<div style="padding:0 18px 10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--tx4)">
           <span>👑 Adminlar:</span>
-          ${com.admins.map(a=>`<span style="color:var(--gold);cursor:pointer" onclick="openUser('${esc(a.username)}')">@${esc(a.username)}</span>`).join(', ')}
+          ${com.admins.map(a=>`<span style="color:var(--gold);cursor:pointer" onclick="openUser('${escJs(a.username)}')">@${esc(a.username)}</span>`).join(', ')}
         </div>` : ''}
       </div>`;
     if (fd) {
@@ -71,12 +71,17 @@ async function toggleJoin(slug, comId, btn) {
 }
 
 async function loadMyComs() {
-  if (!window._me) return;
+  const el = document.getElementById('my-coms'); if(!el) return;
+  if (!window._me) { el.innerHTML = ''; return; }
   try {
-    const coms = await API.communities();
-    const el = document.getElementById('my-coms'); if(!el) return;
+    // ?mine=1 — server faqat a'zo bo'lgan jamoalarni qaytaradi
+    const coms = await API.mineComs();
     el.innerHTML = '';
-    const myComs = coms.filter(c=>c.is_member).slice(0,10);
+    const myComs = coms.filter(c => c.is_member !== false).slice(0,10);
+    if (!myComs.length) {
+      el.innerHTML = `<div style="padding:8px 13px;font-size:12px;color:var(--tx4)">Hali jamoaga qo'shilmadingiz</div>`;
+      return;
+    }
     myComs.forEach(c => {
       const b = document.createElement('button');
       b.className='com-lsb'; b.onclick=()=>openCommunity(c.slug);
@@ -100,7 +105,7 @@ async function loadTopComs() {
       const d = document.createElement('div');
       d.className='com-pop-card'; d.style.animationDelay=(i*.04)+'s';
       d.innerHTML = `
-        <div class="com-pop-inner" onclick="openCommunity('${esc(c.slug)}')">
+        <div class="com-pop-inner" onclick="openCommunity('${escJs(c.slug)}')">
           <div class="com-pop-rank">${i+1}</div>
           ${c.avatar
             ? `<img src="${esc(c.avatar)}" style="width:42px;height:42px;border-radius:12px;object-fit:cover;border:2px solid ${color}40;flex-shrink:0" alt="">`
@@ -111,7 +116,7 @@ async function loadTopComs() {
             ${c.description?`<div class="com-pop-desc">${esc(c.description)}</div>`:''}
           </div>
           <button class="com-pop-join${c.is_member?' joined':''}"
-            onclick="event.stopPropagation();toggleJoin('${esc(c.slug)}','${esc(c.id)}',this)">
+            onclick="event.stopPropagation();toggleJoin('${escJs(c.slug)}','${escJs(c.id)}',this)">
             ${c.is_member?"A'zo":"Qo'shilish"}
           </button>
         </div>`;
@@ -134,7 +139,7 @@ function buildComRsb(com) {
       <div class="rsb-desc">${esc(com.description||'')}</div>
       <div class="rsb-stat"><span>A'zolar</span><strong>${fmtNum(com.members)}</strong></div>
       <div class="rsb-stat"><span>Ko'rishlar</span><strong>${fmtNum(com.views||0)}</strong></div>
-      <button class="btn btn-gold" style="width:100%;margin-top:10px" onclick="requireAuth(()=>openSubmit('${esc(com.slug)}'))">Post qo'shish</button>
+      <button class="btn btn-gold" style="width:100%;margin-top:10px" onclick="requireAuth(()=>openSubmit('${escJs(com.slug)}'))">Post qo'shish</button>
     </div>`;
   el.prepend(div);
 }
@@ -208,12 +213,8 @@ async function addComAdmin(slug) {
   if (!username) { toast('Username kiriting'); return; }
   try {
     const user = await API.getUser(username);
-    if (!user) { toast('Foydalanuvchi topilmadi'); return; }
-    await fetch(`/api/communities/${slug}/admin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
-      body: JSON.stringify({ user_id: user.id })
-    });
+    if (!user || !user.id) { toast('Foydalanuvchi topilmadi'); return; }
+    await API.comAdminAdd(slug, user.id);     // xato bo'lsa endi toast'da ko'rinadi
     inp.value = '';
     toast("Admin qo'shildi!");
     openComAdmins(slug);
@@ -223,11 +224,7 @@ async function addComAdmin(slug) {
 async function removeComAdmin(slug, userId) {
   if (!confirm('Adminni olib tashlamoqchimisiz?')) return;
   try {
-    await fetch(`/api/communities/${slug}/admin`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
-      body: JSON.stringify({ user_id: userId })
-    });
+    await API.comAdminDel(slug, userId);
     toast('Admin olib tashlandi');
     openComAdmins(slug);
   } catch(e) { toast(e.message); }
@@ -244,13 +241,10 @@ async function toggleComPrivate(slug, isPrivate) {
 
 async function handleComRequest(slug, reqId, action) {
   try {
-    await fetch(`/api/communities/${slug}/request/${reqId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
-      body: JSON.stringify({ action })
-    });
+    await API.comRequest(slug, reqId, action);
     toast(action === 'approve' ? 'So\'rov qabul qilindi' : 'So\'rov rad etildi');
     openComAdmins(slug);
+    if (action === 'approve') openCommunity(slug);
   } catch(e) { toast(e.message); }
 }
 
@@ -262,9 +256,15 @@ async function editCom(slug) {
     document.getElementById('ec-name').value = com.name||'';
     document.getElementById('ec-desc').value = com.description||'';
     document.getElementById('ec-rules').value = com.rules||'';
-    // Set color
-    document.querySelectorAll('#ec-overlay .color-opt').forEach(b=>b.classList.toggle('active',b.dataset.color===com.color));
-    document.getElementById('ec-color').value = com.color||'#C8922A';
+    // Joriy rangni belgilash (inline picker .active klassini emas, inline uslubni ishlatadi)
+    const cur = com.color || '#C8922A';
+    document.getElementById('ec-color').value = cur;
+    document.querySelectorAll('#ec-overlay .color-opt').forEach(b=>{
+      const on = b.dataset.color === cur;
+      b.style.transform = on ? 'scale(1.15)' : 'scale(1)';
+      b.style.border    = on ? '3px solid white' : '3px solid transparent';
+      b.style.boxShadow = on ? '0 0 0 2px ' + cur : 'none';
+    });
     // Preview banner/avatar
     if (com.banner) { const img=document.getElementById('ec-banner-preview'); if(img){img.src=com.banner;img.style.display='block';} }
     if (com.avatar) { const img=document.getElementById('ec-avatar-preview'); if(img){img.src=com.avatar;img.style.display='block';} }
@@ -315,6 +315,9 @@ function openSubmit(comSlug) {
   if (vp) vp.innerHTML = '';
   const vs = document.getElementById('vid-poll-section');
   if (vs) vs.style.display = 'none';
+  clearSubImg();
+  ['sub-aud-file','sub-link'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const ap=document.getElementById('sub-aud-preview'); if(ap) ap.innerHTML='';
   document.getElementById('sub-overlay').classList.add('open');
   setTimeout(()=>document.getElementById('sub-title')?.focus(),150);
 }
@@ -490,11 +493,13 @@ function onTopSearch(e) {
 function setSearchType(type) {
   _searchType = type;
   document.querySelectorAll('.search-filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
-  const inp = document.getElementById('search-inp')||document.getElementById('mobile-search-inp');
-  if (inp?.value?.trim().length > 1) doSearch(inp.value.trim());
+  const inp = document.getElementById('tb-search-inp') || document.getElementById('mobile-search-inp');
+  const v = (inp?.value || window._lastSearchQ || '').trim();
+  if (v.length > 1) doSearch(v);
 }
 
 async function doSearch(q) {
+  window._lastSearchQ = q;
   const el = document.getElementById('search-res'); if(!el) return;
   el.innerHTML = spinner();
   try {
@@ -555,10 +560,15 @@ async function doSearch(q) {
 /* ═══ NOTIFICATIONS ═══ */
 function updNotifDot() {
   const dot = document.getElementById('notif-dot');
-  const badge = document.getElementById('notif-badge');
-  const bnBadge = document.getElementById('bn-notif-badge');
-  [dot].forEach(d=>d?.classList.toggle('on',_nUnread>0));
-  [badge, bnBadge].forEach(b=>{ if(b){ b.textContent=_nUnread>0?_nUnread:''; b.classList.toggle('on',_nUnread>0); } });
+  dot?.classList.toggle('on', _nUnread > 0);
+  const label = _nUnread > 99 ? '99+' : String(_nUnread);
+  // 'notif-badge' HTML'da yo'q edi; haqiqiy id'lar — notif-badge-lsb va bn-notif-badge
+  ['notif-badge-lsb', 'bn-notif-badge'].forEach(id => {
+    const b = document.getElementById(id); if (!b) return;
+    b.textContent = _nUnread > 0 ? label : '';
+    b.classList.toggle('on', _nUnread > 0);
+    if (id === 'notif-badge-lsb') b.style.display = _nUnread > 0 ? 'inline-flex' : 'none';
+  });
 }
 
 async function loadNotifCount() {
@@ -668,8 +678,8 @@ async function openChat(user) {
     <button class="msg-back-btn" onclick="closeChatMobile()" title="Orqaga">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
-    <div class="av" style="${avStyle(user,40)};border-radius:50%;flex-shrink:0;cursor:pointer" onclick="openUser('${esc(user.username)}')">${avHtml(user,40,15)}</div>
-    <div style="flex:1;min-width:0;cursor:pointer" onclick="openUser('${esc(user.username)}')">
+    <div class="av" style="${avStyle(user,40)};border-radius:50%;flex-shrink:0;cursor:pointer" onclick="openUser('${escJs(user.username)}')">${avHtml(user,40,15)}</div>
+    <div style="flex:1;min-width:0;cursor:pointer" onclick="openUser('${escJs(user.username)}')">
       <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(user.name||user.username)}</div>
       <div style="font-size:11px;color:var(--tx4);margin-top:2px;display:flex;align-items:center;gap:4px">
         <span style="width:6px;height:6px;border-radius:50%;background:${user.online?'var(--grn)':'var(--tx4)'}"></span>
@@ -718,9 +728,9 @@ function addBubble(msg, isMe) {
   let bodyHtml;
   if(msg.type==='voice') {
     const bars=Array.from({length:20},(_,i)=>`<span style="height:${4+Math.round(Math.abs(Math.sin(i*.8))*14)}px;animation-delay:${(i*.06).toFixed(2)}s"></span>`).join('');
-    bodyHtml=`<div class="voice-msg-bubble"><div class="voice-play-btn" onclick="playVoiceMsg(this,'${esc(msg.audio_url||'')}')">▶</div><div class="voice-bars">${bars}</div><span class="player-time">${msg.duration||'0:00'}</span></div>`;
+    bodyHtml=`<div class="voice-msg-bubble"><div class="voice-play-btn" onclick="playVoiceMsg(this,'${escJs(msg.audio_url||'')}')">▶</div><div class="voice-bars">${bars}</div><span class="player-time">${msg.duration||'0:00'}</span></div>`;
   } else if(msg.type==='image') {
-    bodyHtml=`<div class="chat-img-bubble"><img src="${esc(msg.image_url||'')}" alt="Rasm" onclick="window.open('${esc(msg.image_url||'')}','_blank')" style="max-width:220px;max-height:220px;border-radius:10px;cursor:zoom-in;display:block;object-fit:cover"></div>`;
+    bodyHtml=`<div class="chat-img-bubble"><img src="${esc(msg.image_url||'')}" alt="Rasm" onclick="window.open('${escJs(msg.image_url||'')}','_blank')" style="max-width:220px;max-height:220px;border-radius:10px;cursor:zoom-in;display:block;object-fit:cover"></div>`;
   } else { bodyHtml=esc(msg.body); }
   const seenTick=isMe?(msg.seen?'<span class="b-status seen" title="Ko\'rildi">✓✓</span>':'<span class="b-status">✓</span>'):'';
   d.innerHTML=`${pinned}${fwd}${replyHtml}${bodyHtml}<div class="b-time">${msg.ago||'Hozir'}${seenTick}</div>`;
@@ -776,14 +786,34 @@ function cancelReply() {
   const bar=document.getElementById('reply-preview-bar');
   if(bar) bar.style.display='none';
 }
-function forwardMsg(msg) { toast("Yo'naltirish: "+(msg.body||'').slice(0,30)+'...'); }
+function forwardMsg(msg) {
+  // Haqiqiy yo'naltirish hali yo'q — matnni nusxalab beramiz va rostini aytamiz
+  const text = msg.body || '';
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(()=>{});
+  else if (typeof fallbackCopy === 'function') fallbackCopy(text);
+  toast("Yo'naltirish hozircha mavjud emas — matn nusxalandi");
+}
 function togglePinMsg(msg,bubbleEl) {
   const pinBar=document.getElementById('msg-pinned-bar');
   const existingPin=bubbleEl.querySelector('.bubble-pin-icon');
   if(existingPin){existingPin.remove();msg.pinned=false;if(pinBar)pinBar.style.display='none';toast('Mahkamdan chiqarildi');}
   else{const pin=document.createElement('div');pin.className='bubble-pin-icon';pin.innerHTML='📌 Mahkamlangan';bubbleEl.prepend(pin);msg.pinned=true;if(pinBar){pinBar.style.display='flex';const txt=pinBar.querySelector('.msg-pinned-text');if(txt)txt.textContent=(bubbleEl.dataset.body||'').slice(0,50);pinBar.onclick=()=>bubbleEl.scrollIntoView({behavior:'smooth',block:'center'});}toast('Xabar mahkamlandi');}
 }
-function deleteMsg(msgId,bubbleEl){bubbleEl.style.transition='all .25s ease';bubbleEl.style.opacity='0';bubbleEl.style.transform='scale(.85)';setTimeout(()=>bubbleEl.remove(),250);toast("Xabar o'chirildi");}
+async function deleteMsg(msgId,bubbleEl){
+  // Ilgari faqat ekrandan yashirilardi — sahifa yangilanganda xabar qaytib kelardi.
+  const isLocal = /^(vm|img)-\d+$/.test(String(msgId||''));   // hali yuklanmagan vaqtinchalik bubble
+  if (!isLocal) {
+    try { await API.delMsg(msgId); }
+    catch(e) { toast(e.message || "O'chirilmadi"); return; }
+  }
+  bubbleEl.style.transition='all .25s ease';
+  bubbleEl.style.opacity='0';
+  bubbleEl.style.transform='scale(.85)';
+  setTimeout(()=>bubbleEl.remove(),250);
+  _rendered.delete(msgId);
+  toast("Xabar o'chirildi");
+  loadConvos();
+}
 function playVoiceMsg(btn, url) {
   if (!url) { toast('Audio fayl mavjud emas'); return; }
   // Reuse existing audio object
@@ -851,11 +881,20 @@ function filterConvos(q) {
 }
 
 function initMsgWS() {
+  WS.on('del_msg', d=>{
+    const id = d.data?.id; if(!id) return;
+    document.getElementById('bbl-'+id)?.remove();
+    _rendered.delete(id);
+    loadConvos();
+  });
   WS.on('new_msg',d=>{
+    if(!d.data?.msg) return;
+    const body = String(d.data.msg.body || '');
+    const who  = d.data.from?.name || d.data.from?.username || 'Foydalanuvchi';
     const inThisChat=curSec()==='msgs'&&_chatWith?.id===d.data.msg.from_id;
     if(!inThisChat){
-      toast('💬 '+(d.data.from.name||d.data.from.username)+': '+d.data.msg.body.slice(0,36));
-      showBrowserNotif('MindHub — Yangi xabar', d.data.from.name+': '+d.data.msg.body.slice(0,60), d.data.from.avatar);
+      toast('💬 '+who+': '+body.slice(0,36));
+      showBrowserNotif('MindHub — Yangi xabar', who+': '+body.slice(0,60), d.data.from?.avatar);
     }
     if(inThisChat) addBubble({...d.data.msg,ago:'Hozir'},false);
     loadConvos();
@@ -933,7 +972,8 @@ function sendVoiceMsg(){
     const localUrl = URL.createObjectURL(blob);
     const durStr = Math.floor(dur/60)+':'+(dur%60<10?'0':'')+dur%60;
     // Show immediately in own chat
-    addBubble({id:'vm-'+Date.now(),type:'voice',audio_url:localUrl,duration:durStr,body:'[Ovozli xabar]',ago:'Hozir',seen:false}, true);
+    const tempId = 'vm-'+Date.now();
+    addBubble({id:tempId,type:'voice',audio_url:localUrl,duration:durStr,body:'[Ovozli xabar]',ago:'Hozir',seen:false}, true);
     // Upload so recipient can play
     if (_chatWith) {
       try {
@@ -941,12 +981,11 @@ function sendVoiceMsg(){
         fd.append('voice', blob, 'voice.webm');
         fd.append('to_id', _chatWith.id);
         fd.append('duration', durStr);
-        await fetch('/api/messages/voice', {
-          method:'POST',
-          headers:{ Authorization:'Bearer '+Tok.get() },
-          body: fd
-        });
-      } catch(e){ console.error('voice upload:',e); }
+        await API.sendVoice(fd);             // xato bo'lsa foydalanuvchi xabardor bo'ladi
+      } catch(e){
+        toast(e.message || 'Ovozli xabar yuborilmadi');
+        document.getElementById('bbl-'+tempId)?.remove();
+      }
     }
   };
   if(_mediaRecorder.state!=='inactive'){_mediaRecorder.stream?.getTracks().forEach(t=>t.stop());_mediaRecorder.stop();}
@@ -1059,22 +1098,34 @@ function toggleCallMic(){ if(!_localStream)return; const t=_localStream.getAudio
 function toggleCallCam(){ if(!_localStream)return; const t=_localStream.getVideoTracks()[0]; if(!t)return; t.enabled=!t.enabled; const btn=document.getElementById('call-cam-btn'); if(btn) btn.classList.toggle('off',!t.enabled); toast(t.enabled?'📹 Kamera yoqildi':'🎥 Kamera o\'chirildi'); }
 function toggleSpeaker(){ const a=document.getElementById('call-remote-aud'); if(!a)return; a.muted=!a.muted; const btn=document.getElementById('call-spk-btn'); if(btn) btn.classList.toggle('off',a.muted); toast(a.muted?'🔇 Karnay o\'chirildi':'🔊 Karnay yoqildi'); }
 
-let _ringtoneCtx = null;
+let _ringtoneCtx = null, _ringtoneTimer = null;
 function playRingtone() {
   stopRingtone();
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
   try {
-    _ringtoneCtx = new AudioContext();
+    _ringtoneCtx = new Ctx();
+    const ctx = _ringtoneCtx;
     const play = (freq, t) => {
-      const o=_ringtoneCtx.createOscillator(), g=_ringtoneCtx.createGain();
-      o.connect(g); g.connect(_ringtoneCtx.destination);
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
       o.frequency.value=freq; g.gain.value=0.08;
-      o.start(_ringtoneCtx.currentTime+t); o.stop(_ringtoneCtx.currentTime+t+0.2);
+      o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.2);
     };
-    const loop=()=>{ play(880,0); play(660,0.25); setTimeout(loop,2000); };
+    // Timer saqlanadi — ilgari tozalanmagani uchun ikki marta jiringlash/xatolik bo'lardi
+    const loop=()=>{
+      if (_ringtoneCtx !== ctx || ctx.state === 'closed') return;
+      try { play(880,0); play(660,0.25); } catch { return; }
+      _ringtoneTimer = setTimeout(loop, 2000);
+    };
     loop();
   } catch(e){}
 }
-function stopRingtone(){ try{ _ringtoneCtx?.close(); _ringtoneCtx=null; }catch{} }
+function stopRingtone(){
+  clearTimeout(_ringtoneTimer); _ringtoneTimer = null;
+  const c = _ringtoneCtx; _ringtoneCtx = null;
+  try{ c?.close(); }catch{}
+}
 
 function removeCallUI(){ const ui=document.getElementById('call-ui'); if(ui){ui.style.opacity='0';ui.style.transition='opacity .2s';setTimeout(()=>ui.remove(),200);} }
 
@@ -1248,7 +1299,7 @@ async function openUser(param) {
                 :`<button class="btn ${u.is_following?'btn-outline':'btn-gold'}" id="flw-btn-${u.id}" onclick="followUser('${u.id}',this)">
                     ${u.is_following?`${IC.check} Kuzatilmoqda`:`${IC.follow} Kuzatish`}
                   </button>
-                  <button class="btn btn-ghost" onclick="startChat('${esc(u.username)}')">${IC.msg} Xabar</button>`
+                  <button class="btn btn-ghost" onclick="startChat('${escJs(u.username)}')">${IC.msg} Xabar</button>`
               }
               ${window._me?.is_admin&&!isMe?`<button class="btn btn-danger" onclick="adminBanUser('${u.id}',${u.is_banned})">${u.is_banned?'Blokdan chiqarish':'Bloklash'}</button>`:''}
             </div>
@@ -1307,8 +1358,8 @@ async function loadSettings() {
   el.innerHTML=spinner();
   try {
     const u=await API.me();
-    const pushEnabled=localStorage.getItem('push_enabled')==='1';
-    const permGranted=Notification.permission==='granted';
+    const pushSupported = ('Notification' in window);
+    const permGranted = pushSupported && Notification.permission === 'granted';
     el.innerHTML=`
       <div class="set-card">
         <div class="set-title"><span class="set-title-ico">👤</span> Profil</div>
@@ -1328,7 +1379,7 @@ async function loadSettings() {
         <button class="btn btn-gold" onclick="saveProfile()">Saqlash</button>
       </div>
       <div class="set-card">
-        <div class="set-title"><span class="set-title-ico">🔒</span> Parol (Oddiy)</div>
+        <div class="set-title"><span class="set-title-ico">🔒</span> Parolni o'zgartirish</div>
         <div class="form-row"><label class="form-lbl">Eski parol</label><input class="inp" id="cp-old" type="password" placeholder="••••••"></div>
         <div class="form-row"><label class="form-lbl">Yangi parol</label><input class="inp" id="cp-new" type="password" placeholder="••••••"></div>
         <div class="form-row"><label class="form-lbl">Tasdiqlash</label><input class="inp" id="cp-conf" type="password" placeholder="••••••"></div>
@@ -1341,8 +1392,8 @@ async function loadSettings() {
             <div style="font-size:14px;font-weight:600">Push bildirishnomalar</div>
             <div style="font-size:12px;color:var(--tx4);margin-top:2px">Real vaqtda brauzer bildirishnomalari</div>
           </div>
-          <button onclick="requestPushPermission()" class="btn ${permGranted?'btn-outline':'btn-gold'}" style="padding:6px 14px;font-size:12px">
-            ${permGranted?'✅ Yoqilgan':'Yoqish'}
+          <button onclick="requestPushPermission()" class="btn ${permGranted?'btn-outline':'btn-gold'}" style="padding:6px 14px;font-size:12px" ${pushSupported?'':'disabled'}>
+            ${!pushSupported?'Mavjud emas':permGranted?'✅ Yoqilgan':'Yoqish'}
           </button>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
@@ -1361,51 +1412,24 @@ async function loadSettings() {
   } catch(e){el.innerHTML=emptyEl('close','Xatolik',e.message);}
 }
 
-async function settingsSendCode(){
-  const btn=document.getElementById('set-reset-send-btn');
-  const err=document.getElementById('set-reset-err1');
-  if(err)err.textContent='';
-  btn.disabled=true;btn.textContent='...';
-  try{
-    const d=await API.sendCode(window._me.username);
-    document.getElementById('set-reset-step1').style.display='none';
-    document.getElementById('set-reset-step2').style.display='block';
-    document.getElementById('set-reset-code').focus();
-  }catch(e){if(err){err.textContent=e.message;err.classList.add('on');}}
-  finally{btn.disabled=false;btn.textContent='📧 Kod yuborish';}
-}
-async function settingsResetByCode(){
-  const code=(document.getElementById('set-reset-code')?.value||'').trim();
-  const np=document.getElementById('set-reset-new')?.value;
-  const cp=document.getElementById('set-reset-conf')?.value;
-  const err=document.getElementById('set-reset-err2');
-  if(err)err.textContent='';
-  if(!code||code.length!==6){if(err){err.textContent='6 xonali kod kiriting';err.classList.add('on');}return;}
-  if(!np||np.length<6){if(err){err.textContent='Parol kamida 6 belgi';err.classList.add('on');}return;}
-  if(np!==cp){if(err){err.textContent='Parollar mos emas';err.classList.add('on');}return;}
-  try{
-    const vr=await API.verifyCode(window._me.username,code);
-    await API.resetPass(vr.reset_token,np);
-    document.getElementById('set-reset-step2').style.display='none';
-    document.getElementById('set-reset-done').style.display='block';
-    toast('Parol yangilandi!');
-  }catch(e){if(err){err.textContent=e.message;err.classList.add('on');}}
-}
-
 async function saveProfile(){
+  const name=(document.getElementById('st-name')?.value||'').trim();
+  const bio =(document.getElementById('st-bio')?.value||'').trim();
+  const email=(document.getElementById('st-email')?.value||'').trim();
+  if(!name){toast('Ism bo\'sh bo\'lmasin');return;}
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){toast("Email manzil noto'g'ri");return;}
   try{
-    const name=document.getElementById('st-name').value;
-    const bio=document.getElementById('st-bio').value;
-    const email=document.getElementById('st-email')?.value?.trim()||'';
-    const u=await API.updMe(name,bio);
-    if(email && email!==window._me?.email){
-      try{await api('PUT','/me',{name,bio,email});}catch(e){console.error('Email save:',e);}
-    }
-    window._me={...window._me,...u,email};syncTopbar(window._me);toast('Profil saqlandi');
-  }catch(e){toast(e.message);}
+    // Bitta so'rov — ilgali ikkita yuborilib, email xatosi yashirin qolardi
+    const u=await api('PUT','/me',{name,bio,email:email||undefined});
+    window._me={...window._me,...u};
+    syncTopbar(window._me);
+    toast('Profil saqlandi');
+  }catch(e){toast(e.message||'Saqlanmadi');}
 }
 async function doChpass(){
   const o=document.getElementById('cp-old').value,n=document.getElementById('cp-new').value,c=document.getElementById('cp-conf').value;
+  if(!o||!n){toast('Parollarni kiriting');return;}
+  if(n.length<6){toast('Yangi parol kamida 6 belgi');return;}
   if(n!==c){toast('Parollar mos emas');return;}
   try{await API.chpass(o,n);toast('Parol o\'zgartirildi');['cp-old','cp-new','cp-conf'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});}catch(e){toast(e.message);}
 }
@@ -1536,13 +1560,14 @@ async function doDeleteCom() {
   const val  = (inp?.value||'').trim();
   if (val !== label && val !== slug) { toast('Jamoa nomini to\'g\'ri kiriting'); return; }
   try {
-    await fetch(`/api/communities/${slug}`, { method:'DELETE', headers:{ Authorization:'Bearer '+Tok.get() } });
+    await API.delCom(slug);                  // ilgari xato bo'lsa ham "o'chirildi" deb ko'rsatardi
     document.getElementById('com-delete-modal').classList.remove('open');
     toast('Jamoa o\'chirildi');
+    _delComSlug = null;
     goSec('home');
     loadFeed(true);
     loadMyComs();
-  } catch(e) { toast('Xatolik yuz berdi'); }
+  } catch(e) { toast(e.message || 'Xatolik yuz berdi'); }
 }
 
 /* ═══ EMOJI PICKER ═══ */
@@ -1585,20 +1610,20 @@ async function sendChatImage(inp) {
   const file = inp.files[0];
   inp.value = '';
   // Show preview locally
+  if (file.size > 10 * 1024 * 1024) { toast('Rasm 10MB dan oshmasin'); return; }
   const localUrl = URL.createObjectURL(file);
-  addBubble({ id:'img-'+Date.now(), type:'image', image_url:localUrl, body:'[Rasm]', ago:'Hozir', seen:false }, true);
+  const tempId = 'img-'+Date.now();
+  addBubble({ id:tempId, type:'image', image_url:localUrl, body:'[Rasm]', ago:'Hozir', seen:false }, true);
   // Upload to server
   try {
     const fd = new FormData();
     fd.append('image', file);
     fd.append('to_id', _chatWith.id);
-    const res = await fetch('/api/messages/image', {
-      method:'POST',
-      headers:{ Authorization:'Bearer '+Tok.get() },
-      body: fd
-    });
-    if (!res.ok) { const d=await res.json(); toast(d.error||'Rasm yuborilmadi'); }
-  } catch(e) { toast('Rasm yuborilmadi'); }
+    await API.sendChatImage(fd);
+  } catch(e) {
+    toast(e.message || 'Rasm yuborilmadi');
+    document.getElementById('bbl-'+tempId)?.remove();   // muvaffaqiyatsiz bo'lsa olib tashlaymiz
+  }
 }
 
 /* ═══ BAN BANNER ═══ */
@@ -1640,15 +1665,56 @@ function loadContactsScroll(convos) {
 async function loadSavedPosts(){
   const el=document.getElementById('saved-cnt'); if(!el) return;
   el.innerHTML=spinner();
-  try{const posts=await API.savedPosts();el.innerHTML='';if(!posts.length){      el.innerHTML=emptyEl('save',"Hozircha hech narsa saqlanmagan. Postdagi ⭐ tugmasini bosing.");return;}posts.forEach((p,i)=>{const d=document.createElement('div');d.innerHTML=buildPost(p);const c=d.firstElementChild;c.style.animationDelay=(i*.04)+'s';el.appendChild(c);});}catch(e){el.innerHTML=emptyEl('close','Xatolik',e.message);}
+  try{const posts=await API.savedPosts();el.innerHTML='';if(!posts.length){      el.innerHTML=emptyEl('save',"Hozircha hech narsa saqlanmagan","Post ostidagi \u201cSaqlash\u201d tugmasini bosing");return;}posts.forEach((p,i)=>{const d=document.createElement('div');d.innerHTML=buildPost(p);const c=d.firstElementChild;c.style.animationDelay=(i*.04)+'s';el.appendChild(c);});}catch(e){el.innerHTML=emptyEl('close','Xatolik',e.message);}
 }
 
 /* ═══ CREATE COMMUNITY ═══ */
 let _ccColor='#C8922A';
-function openCreateCom(){document.getElementById('cc-overlay').classList.add('open');_ccColor='#C8922A';}
+function openCreateCom(){resetCreateComForm();document.getElementById('cc-overlay').classList.add('open');}
+function resetCreateComForm(){
+  _ccColor='#C8922A';
+  ['nc-slug','nc-name','nc-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['cc-banner-file','cc-avatar-file'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['cc-banner-preview','cc-avatar-preview'].forEach(id=>{const el=document.getElementById(id);if(el){el.src='';el.style.display='none';}});
+  ['cc-banner-placeholder','cc-avatar-placeholder'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+  const cc=document.getElementById('cc-color'); if(cc) cc.value='#C8922A';
+  const pub=document.querySelector('input[name="cc-priv"][value="0"]'); if(pub) pub.checked=true;
+}
 function closeCreateCom(){document.getElementById('cc-overlay').classList.remove('open');}
-function selectCCColor(color,el){_ccColor=color;document.querySelectorAll('#cc-overlay .color-opt').forEach(b=>b.classList.remove('active'));el.classList.add('active');document.getElementById('cc-color').value=color;}
-function selectECColor(color,el){document.getElementById('ec-color').value=color;document.querySelectorAll('#ec-overlay .color-opt').forEach(b=>b.classList.toggle('active',b.dataset.color===color));}
+/* Rang tanlash — ilgari bu funksiyalar index.html ichida ham takrorlangan va
+   features.js versiyasini bosib ketgan edi. Endi faqat shu yerda. */
+function markColorOpt(scope, color) {
+  document.querySelectorAll(scope + ' .color-opt').forEach(b => {
+    const on = b.dataset.color === color;
+    b.style.transform = on ? 'scale(1.15)' : 'scale(1)';
+    b.style.border    = on ? '3px solid #fff' : '3px solid transparent';
+    b.style.boxShadow = on ? '0 0 0 2px ' + color : 'none';
+    b.classList.toggle('active', on);
+  });
+}
+function selectCCColor(color, el) {
+  _ccColor = color;
+  const inp = document.getElementById('cc-color'); if (inp) inp.value = color;
+  markColorOpt('#cc-overlay', color);   // el null bo'lsa ham ishlaydi (rang tanlagich inputi)
+}
+function selectECColor(color, el) {
+  const inp = document.getElementById('ec-color'); if (inp) inp.value = color;
+  markColorOpt('#ec-overlay', color);
+}
+
+/* Jamoa banner/avatar oldindan ko'rish */
+function previewImgInto(inp, imgId, phId, maxMb) {
+  const f = inp.files?.[0]; if (!f) return;
+  if (maxMb && f.size > maxMb * 1024 * 1024) { toast(`Rasm ${maxMb}MB dan oshmasin`); inp.value = ''; return; }
+  const img = document.getElementById(imgId);
+  const ph  = phId && document.getElementById(phId);
+  if (img) { img.src = URL.createObjectURL(f); img.style.display = 'block'; }
+  if (ph)  ph.style.display = 'none';
+}
+function previewCCBanner(inp){ previewImgInto(inp, 'cc-banner-preview', 'cc-banner-placeholder', 5); }
+function previewCCAvatar(inp){ previewImgInto(inp, 'cc-avatar-preview', 'cc-avatar-placeholder', 5); }
+function previewECBanner(inp){ previewImgInto(inp, 'ec-banner-preview', null, 5); }
+function previewECAvatar(inp){ previewImgInto(inp, 'ec-avatar-preview', null, 5); }
 
 async function doCreateCom(){
   const slug=(document.getElementById('nc-slug')?.value||'').trim().toLowerCase().replace(/\s+/g,'-');
@@ -1660,29 +1726,20 @@ async function doCreateCom(){
   const btn=document.getElementById('cc-create-btn');
   if(btn){btn.disabled=true;btn.textContent='Yaratilmoqda...';}
   try {
-    const fd = new FormData();
-    fd.append('slug',slug); fd.append('name',name); fd.append('description',desc); fd.append('color',_ccColor);
-    if(isPrivate) fd.append('is_private','1');
+    const com = await API.createCom(slug,name,desc,_ccColor,isPrivate?1:0);
+    // Rasmlar alohida PUT bilan yuklanadi (create JSON qabul qiladi)
     const bannerFile=document.getElementById('cc-banner-file')?.files?.[0];
     const avatarFile=document.getElementById('cc-avatar-file')?.files?.[0];
-    if(bannerFile) fd.append('banner',bannerFile);
-    if(avatarFile) fd.append('avatar',avatarFile);
-    const com = await API.createCom(slug,name,desc,_ccColor,isPrivate?1:0);
-    if (com && com.slug) {
-      const bannerFile2=document.getElementById('cc-banner-file')?.files?.[0];
-      const avatarFile2=document.getElementById('cc-avatar-file')?.files?.[0];
-      if (bannerFile2 || avatarFile2) {
-        try {
-          const fd2 = new FormData();
-          fd2.append('name', name); fd2.append('description', desc);
-          fd2.append('color', _ccColor);
-          if (bannerFile2) fd2.append('banner', bannerFile2);
-          if (avatarFile2) fd2.append('avatar', avatarFile2);
-          await API.updateCom(com.slug, fd2, true);
-        } catch(e) { console.error('Image upload:', e); }
-      }
+    if (com?.slug && (bannerFile || avatarFile)) {
+      try {
+        const fd = new FormData();
+        fd.append('name', name); fd.append('description', desc); fd.append('color', _ccColor);
+        if (bannerFile) fd.append('banner', bannerFile);
+        if (avatarFile) fd.append('avatar', avatarFile);
+        await API.updateCom(com.slug, fd, true);
+      } catch(e) { toast('Rasm yuklanmadi: ' + (e.message||'')); }
     }
-    closeCreateCom();toast('Jamoa yaratildi!');openCommunity(com.slug||slug);loadMyComs();
+    closeCreateCom();resetCreateComForm();toast('Jamoa yaratildi!');openCommunity(com?.slug||slug);loadMyComs();
   } catch(e){toast(e.message);}
   finally{if(btn){btn.disabled=false;btn.textContent='Yaratish';}}
 }
@@ -1690,13 +1747,23 @@ async function doCreateCom(){
 /* ═══ FILE PREVIEWS ═══ */
 function previewSubImg(inp){
   const f=inp.files?.[0];if(!f)return;
+  if(f.size>10*1024*1024){toast('Rasm 10MB dan oshmasin');inp.value='';return;}
   const el=document.getElementById('sub-img-preview');if(!el)return;
   const url=URL.createObjectURL(f);
-  el.innerHTML=`<div style="max-height:200px;overflow:hidden;border-radius:var(--r);margin-top:8px"><img src="${url}" style="width:100%;object-fit:cover;max-height:200px"></div>`;
+  el.innerHTML=`<div style="position:relative;margin-top:8px">
+      <div style="max-height:240px;overflow:hidden;border-radius:var(--r);background:var(--bg2)"><img src="${url}" style="width:100%;object-fit:contain;max-height:240px"></div>
+      <button onclick="clearSubImg()" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer;font-size:14px;line-height:1">✕</button>
+    </div>`;
   document.getElementById('sub-img-drop').style.display='none';
+}
+function clearSubImg(){
+  const fi=document.getElementById('sub-img-file'); if(fi) fi.value='';
+  const el=document.getElementById('sub-img-preview'); if(el) el.innerHTML='';
+  const drop=document.getElementById('sub-img-drop'); if(drop) drop.style.display='';
 }
 function previewSubVid(inp){
   const f=inp.files?.[0];if(!f)return;
+  if(f.size>500*1024*1024){toast('Video 500MB dan oshmasin');inp.value='';return;}
   const url=URL.createObjectURL(f);
   const vid=document.createElement('video');
   vid.preload='metadata';
@@ -1722,6 +1789,7 @@ function previewSubVid(inp){
 }
 function previewSubAud(inp){
   const f=inp.files?.[0];if(!f)return;
+  if(f.size>20*1024*1024){toast('Audio 20MB dan oshmasin');inp.value='';return;}
   const el=document.getElementById('sub-aud-preview');if(!el)return;
   const url=URL.createObjectURL(f);
   el.innerHTML=`<div style="padding:10px;background:var(--bg2);border-radius:var(--r);margin-top:8px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">🎵</span><span style="font-size:13px;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span><audio src="${url}" controls style="height:30px"></audio></div>`;
@@ -1761,7 +1829,11 @@ window.loadContactsScroll=loadContactsScroll;
 window.renderAdminContent=renderAdminContent;
 window.loadSavedPosts=loadSavedPosts;
 
+window.resetCreateComForm=resetCreateComForm; window.clearSubImg=clearSubImg;
 window.openCreateCom=openCreateCom; window.closeCreateCom=closeCreateCom; window.selectCCColor=selectCCColor; window.selectECColor=selectECColor; window.doCreateCom=doCreateCom;
 window.previewSubImg=previewSubImg; window.previewSubVid=previewSubVid; window.previewSubAud=previewSubAud;
+window.previewCCBanner=previewCCBanner; window.previewCCAvatar=previewCCAvatar;
+window.previewECBanner=previewECBanner; window.previewECAvatar=previewECAvatar;
+window.markColorOpt=markColorOpt;
 window.openComAdmins=openComAdmins; window.addComAdmin=addComAdmin; window.removeComAdmin=removeComAdmin;
 window.toggleComPrivate=toggleComPrivate; window.handleComRequest=handleComRequest;

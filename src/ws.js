@@ -19,7 +19,9 @@ function encode(obj) {
 }
 function decode(buf) {
   if (buf.length < 2) return null;
-  if ((buf[0] & 0x0f) === 0x8) return { close: true };
+  const op = buf[0] & 0x0f;
+  if (op === 0x8) return { close: true };
+  if (op === 0x9 || op === 0xA) return { control: true };   // ping/pong — e'tiborsiz
   const masked = !!(buf[1] & 0x80);
   let l = buf[1] & 0x7f, off = 2;
   if (l === 126) { l = buf.readUInt16BE(2); off = 4; }
@@ -34,8 +36,16 @@ function decode(buf) {
 }
 function add(id, sock) { if (!clients.has(id)) clients.set(id, new Set()); clients.get(id).add(sock); }
 function remove(id, sock) { if (!clients.has(id)) return; clients.get(id).delete(sock); if (!clients.get(id).size) clients.delete(id); }
-function sendTo(id, obj) { const s = clients.get(id); if (!s) return; const f = encode(obj); for (const sk of s) { try { sk.write(f); } catch {} } }
-function sendAll(obj) { const f = encode(obj); for (const [, s] of clients) for (const sk of s) { try { sk.write(f); } catch {} } }
+function write(set, frame, id) {
+  for (const sk of [...set]) {
+    if (sk.destroyed || !sk.writable) { set.delete(sk); continue; }
+    try { sk.write(frame); } catch { set.delete(sk); try { sk.destroy(); } catch {} }
+  }
+  if (id && !set.size) clients.delete(id);
+}
+function sendTo(id, obj) { const s = clients.get(id); if (!s) return; write(s, encode(obj), id); }
+function sendAll(obj) { const f = encode(obj); for (const [id, s] of [...clients]) write(s, f, id); }
+function count() { let n = 0; for (const [, s] of clients) n += s.size; return n; }
 function isOnline(id) { return clients.has(id) && clients.get(id).size > 0; }
 
-module.exports = { handshake, encode, decode, add, remove, sendTo, sendAll, isOnline };
+module.exports = { handshake, encode, decode, add, remove, sendTo, sendAll, isOnline, count };

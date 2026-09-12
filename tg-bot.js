@@ -1,38 +1,21 @@
 'use strict';
-const https = require('https');
+/*
+ * MindHub Telegram bot — foydalanuvchi akkauntini Telegram bilan bog'laydi
+ * (users.tg_chat_id to'ldiradi), shunda parol tiklash kodini Telegram orqali
+ * yuborish mumkin bo'ladi. Bot tokeni faqat env'dan olinadi (src/config.js).
+ */
+const { tgApi, sendMessage } = require('./src/telegram');
+const { RESEND_API_KEY, hasTelegram } = require('./src/config');
 
-const BOT_TOKEN = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
-const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 let offset = 0;
 let dbRef = null;
+let running = false;
 const pendingLinks = new Map();
 
-function tg(method, body) {
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body || {});
-    const url = new URL(`${API_BASE}/${method}`);
-    const req = https.request({
-      hostname: url.hostname,
-      path: url.pathname,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
-    }, (res) => {
-      let buf = '';
-      res.on('data', c => buf += c);
-      res.on('end', () => { try { resolve(JSON.parse(buf)); } catch { resolve({ ok: false }); } });
-    });
-    req.on('error', reject);
-    req.write(data);
-    req.end();
-  });
-}
-
-async function sendMsg(chatId, text, extra = {}) {
-  return tg('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra });
-}
+const tg = tgApi;
+const sendMsg = (chatId, text, extra = {}) => sendMessage(chatId, text, { parse_mode: 'HTML', ...extra });
 
 async function sendEmailViaResend(to, code) {
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) return false;
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:16px">
@@ -165,15 +148,26 @@ async function poll() {
     console.error('Poll err:', e.message);
     await new Promise(r => setTimeout(r, 3000));
   }
-  setTimeout(poll, 100);
+  if (running) setTimeout(poll, 100);
 }
 
 async function startBot(database) {
+  if (!hasTelegram) {
+    console.warn('🤖 Telegram bot ishga tushirilmadi: TG_BOT_TOKEN sozlanmagan');
+    return false;
+  }
   dbRef = database;
   const me = await tg('getMe');
-  if (!me.ok) throw new Error('Bot token invalid: ' + JSON.stringify(me));
-  console.log(`🤖 Bot started: @${me.result.username}`);
+  if (!me || !me.ok) {
+    console.error('🤖 Telegram bot tokeni yaroqsiz:', JSON.stringify(me));
+    return false;
+  }
+  running = true;
+  console.log(`🤖 Bot ishga tushdi: @${me.result.username}`);
   poll();
+  return true;
 }
 
-module.exports = { startBot, tg, sendMsg };
+function stopBot() { running = false; }
+
+module.exports = { startBot, stopBot, tg, sendMsg };

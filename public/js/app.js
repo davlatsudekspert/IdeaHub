@@ -7,7 +7,7 @@ function loadTgWidget(containerId) {
   if (!el || el.querySelector('script')) return;
   const s = document.createElement('script');
   s.src = 'https://telegram.org/js/telegram-widget.js?22';
-  s.setAttribute('data-telegram-login', 'mind_hubbot');
+  s.setAttribute('data-telegram-login', window.TG_BOT_NAME || 'mind_hubbot');
   s.setAttribute('data-size', 'large');
   s.setAttribute('data-onauth', 'onTelegramAuth(user)');
   s.setAttribute('data-request-access', 'write');
@@ -42,7 +42,7 @@ async function finishTgReg() {
   if (!name || !username) { err.textContent = "Ism va username kerak"; err.classList.add('on'); return; }
   const btn = document.getElementById('am-tg-btn'); btn.disabled = true; btn.textContent = '...';
   try {
-    const d = await api('POST', '/auth/telegram-finish', { token: _tgPendingUser.tempToken, name, username });
+    const d = await api('POST', '/auth/telegram-finish', { tempToken: _tgPendingUser?.tempToken, name, username });
     tokSave(d.token); Tok.set(d.token); closeAuthModal(); await boot(d.user);
   } catch (e) { err.textContent = e.message; err.classList.add('on'); }
   finally { btn.disabled = false; btn.textContent = 'Davom etish'; }
@@ -93,69 +93,10 @@ async function doAmReg(){
   finally{btn.disabled=false;btn.textContent="Ro'yxatdan o'tish";}
 }
 
-async function doAmForgot(){
-  const uname=(document.getElementById('am-forgot-uname').value||'').trim();
-  const err=document.getElementById('am-err'); err.classList.remove('on');
-  if(!uname){err.textContent="Username kiriting";err.classList.add('on');return;}
-  const btn=document.getElementById('am-forgot-btn'); btn.disabled=true;btn.textContent='...';
-  try{
-    window._fgUsername=uname;
-    const d=await API.sendCode(uname);
-    document.getElementById('fg-step1').style.display='none';
-    document.getElementById('fg-email-mask').textContent=d.email||'';
-    document.getElementById('fg-step2').style.display='block';
-    document.getElementById('fg-code').focus();
-  }catch(e){err.textContent=e.message;err.classList.add('on');}
-  finally{btn.disabled=false;btn.textContent='Kod yuborish';}
-}
-async function doVerifyCode(){
-  const code=(document.getElementById('fg-code').value||'').trim();
-  const err=document.getElementById('fg-code-err'); err.classList.remove('on');
-  if(!code||code.length!==6){err.textContent='6 xonali kod kiriting';err.classList.add('on');return;}
-  const btn=document.getElementById('fg-code-btn'); btn.disabled=true;btn.textContent='...';
-  try{
-    const d=await API.verifyCode(window._fgUsername,code);
-    window._resetToken=d.reset_token;
-    document.getElementById('fg-step2').style.display='none';
-    document.getElementById('fg-step3').style.display='block';
-    document.getElementById('fg-new-pass').focus();
-  }catch(e){err.textContent=e.message;err.classList.add('on');}
-  finally{btn.disabled=false;btn.textContent='Tekshirish';}
-}
-function fgResendCode(){
-  document.getElementById('fg-step2').style.display='none';
-  document.getElementById('fg-step1').style.display='block';
-  document.getElementById('fg-code').value='';
-  document.getElementById('fg-code-err').classList.remove('on');
-}
-async function doResetByEmail(){
-  const p=document.getElementById('fg-new-pass').value;
-  const c=document.getElementById('fg-confirm-pass').value;
-  const err=document.getElementById('fg-pass-err'); err.classList.remove('on');
-  if(p!==c){err.textContent='Parollar mos emas';err.classList.add('on');return;}
-  if(p.length<6){err.textContent='Parol kamida 6 belgi';err.classList.add('on');return;}
-  const btn=document.getElementById('fg-reset-btn'); btn.disabled=true;btn.textContent='...';
-  try{
-    await API.resetPass(window._resetToken,p);
-    switchAmTab('login');
-    document.getElementById('am-err').style.cssText='background:rgba(46,158,91,.08);border-color:rgba(46,158,91,.2);color:var(--grn);margin-bottom:12px;display:block;padding:9px 13px;font-size:13px;border-radius:var(--r)';
-    document.getElementById('am-err').textContent='✅ Parol o\'zgartirildi! Yangi parol bilan kiring.';
-    document.getElementById('am-err').classList.add('on');
-    resetForgotForm();
-  }catch(e){err.textContent=e.message;err.classList.add('on');}
-  finally{btn.disabled=false;btn.textContent='Saqlash';}
-}
-function resetForgotForm(){
-  document.getElementById('fg-step1').style.display='block';
-  document.getElementById('fg-step2').style.display='none';
-  document.getElementById('fg-step3').style.display='none';
-  document.getElementById('am-forgot-uname').value='';
-  document.getElementById('fg-code').value='';
-  document.getElementById('fg-new-pass').value='';
-  document.getElementById('fg-confirm-pass').value='';
-  document.getElementById('fg-code-err').classList.remove('on');
-  document.getElementById('fg-pass-err').classList.remove('on');
-}
+/* Parolni tiklash: hisob Telegram bilan bog'langan bo'lsa, Telegram orqali kirish.
+   (Email-kod orqali tiklash UI'si ilgari olib tashlangan; server endpointlari
+   /auth/send-code, /auth/verify-code, /auth/reset hali ham mavjud.) */
+function openForgot(){ switchAmTab('forgot'); }
 
 /* ═══ RESET PASSWORD (old flow - keep for backwards compat) ═══ */
 async function checkResetToken(){
@@ -167,7 +108,7 @@ async function checkResetToken(){
   ['reset-checking','reset-form','reset-invalid','reset-done'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('reset-checking').style.display='block';
   try{
-    const d=await API.verifyReset(token);
+    const d=await API.verifyReset(token);   // core.js'da yo'q edi -> havola har doim "eskirgan" chiqardi
     document.getElementById('reset-checking').style.display='none';
     if(d.valid){
       document.getElementById('reset-uname-label').textContent=d.username||'';
@@ -200,11 +141,11 @@ function syncTopbar(u){
   const av=document.getElementById('tb-av');
   if(av){av.style.cssText=avStyle(u,28)+'border-radius:50%;';av.innerHTML=u.avatar?`<img src="${esc(u.avatar)}" style="width:100%;height:100%;object-fit:cover" alt="">`: `<span style="font-size:10px;font-weight:800;color:#fff">${initials(u.name||u.username)}</span>`;}
   const nm=document.getElementById('tb-av-name'); if(nm) nm.textContent=u.name||u.username;
-  const kr=document.getElementById('tb-av-karma'); if(kr) kr.textContent=fmtNum(u.followers||0)+' obunachi';
+  const kr=document.getElementById('tb-av-karma'); if(kr) kr.textContent=fmtNum(u.karma||0)+' karma';
   const sb=document.getElementById('sb-av');
   if(sb){sb.style.cssText=avStyle(u,30)+'border-radius:50%;';sb.innerHTML=u.avatar?`<img src="${esc(u.avatar)}" style="width:100%;height:100%;object-fit:cover" alt="">`: `<span style="font-size:10px;font-weight:800;color:#fff">${initials(u.name||u.username)}</span>`;}
   const sn=document.getElementById('sb-uname'); if(sn) sn.textContent='u/'+(u.username||'');
-  const sk=document.getElementById('sb-karma'); if(sk) sk.textContent=fmtNum(u.followers||0)+' obunachi';
+  const sk=document.getElementById('sb-karma'); if(sk) sk.textContent=fmtNum(u.karma||0)+' karma · '+fmtNum(u.followers||0)+' obunachi';
   // Create box avatar
   const cb=document.getElementById('cb-av');
   if(cb){cb.style.cssText=avStyle(u,36)+'border-radius:50%;';cb.innerHTML=u.avatar?`<img src="${esc(u.avatar)}" style="width:100%;height:100%;object-fit:cover" alt="">`: `<span style="font-size:13px;font-weight:800;color:#fff">${initials(u.name||u.username)}</span>`;}
@@ -221,7 +162,8 @@ async function boot(initialUser){
   if (window._me?.is_banned) showBanBanner(window._me.ban_reason);
   WS.connect(Tok.get());
   initFeedWS();initMsgWS();initNotifWS();if(typeof initCallWS==='function')initCallWS();
-  await Promise.all([loadFeed(true),loadNotifCount(),loadConvos(),loadMyComs(),loadTopComs(),initComPicker()]);
+  // Promise.all ilgari bitta xato bo'lsa butun boot'ni to'xtatardi (scroll/rsb sozlanmay qolardi)
+  await Promise.allSettled([loadFeed(true),loadNotifCount(),loadConvos(),loadMyComs(),loadTopComs(),initComPicker()]);
   initScrollFeed();
   buildRsb();
   // Push notifications
@@ -230,7 +172,9 @@ async function boot(initialUser){
   const urlParams=new URLSearchParams(location.search);
   const postId=urlParams.get('post');
   if(postId){ history.replaceState({},'',(location.pathname)); openPost(postId); }
-  // Nav buttons
+  // Nav buttons — HTML'dagi inline onclick yetarli; bu yerda faqat bir marta bog'lanadi
+  if (!window._navBound) {
+  window._navBound = true;
   document.querySelectorAll('.lsb-btn[data-sec]').forEach(btn=>{
     const clone=btn.cloneNode(true); btn.parentNode.replaceChild(clone,btn);
     clone.addEventListener('click',()=>{
@@ -245,6 +189,7 @@ async function boot(initialUser){
       if(s==='popular') loadTopComs();
     });
   });
+  }
 }
 
 function buildRsb(){
@@ -276,7 +221,8 @@ function updateThemeBtn(){
 /* ═══ SEARCH ═══ */
 function onTopSearch(e){
   const q=(e.target.value||'').trim();
-  if(q.length>1){doSearch(q);if(curSec()!=='search')goSec('search');}
+  if(q.length>1){ debouncedSearch(q); if(curSec()!=='search') goSec('search'); }
+  else if(!q && curSec()==='search'){ const el=document.getElementById('search-res'); if(el) el.innerHTML=''; }
 }
 
 /* ═══ LOGOUT ═══ */
@@ -325,7 +271,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
 });
 
 window.showAuthModal=showAuthModal;window.closeAuthModal=closeAuthModal;window.switchAmTab=switchAmTab;
-window.requireAuth=requireAuth;window.doAmLogin=doAmLogin;window.doAmReg=doAmReg;window.doAmForgot=doAmForgot;
+window.requireAuth=requireAuth;window.doAmLogin=doAmLogin;window.doAmReg=doAmReg;window.openForgot=openForgot;
+window.onTelegramAuth=onTelegramAuth;window.finishTgReg=finishTgReg;window.loadTgWidget=loadTgWidget;
 window.doReset=doReset;window.closeReset=closeReset;window.openForgotFromReset=openForgotFromReset;
 window.syncTopbar=syncTopbar;window.boot=boot;window.toggleTheme=toggleTheme;window.doLogout=doLogout;
 window.onTopSearch=onTopSearch;window.setBnActive=setBnActive;window.toggleMobileSearch=toggleMobileSearch;window.openMobileSearch=openMobileSearch;

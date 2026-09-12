@@ -35,12 +35,12 @@ function buildPost(p, isDetail = false) {
   </div>
   <div class="post-body">
     <div class="post-meta">
-      <span class="post-com-link" onclick="event.stopPropagation();openCommunity('${esc(p.cslug)}')">
+      <span class="post-com-link" onclick="event.stopPropagation();openCommunity('${escJs(p.cslug)}')">
         <span class="com-circle" style="background:${esc(p.ccolor||'#C8922A')}"></span>
         <strong>${esc(p.cslug)}</strong>
       </span>
       <span class="post-by">
-        u/<a onclick="event.stopPropagation();event.preventDefault();openUser('${esc(p.username)}')">${esc(p.username)}</a>
+        u/<a onclick="event.stopPropagation();event.preventDefault();openUser('${escJs(p.username)}')">${esc(p.username)}</a>
         &middot; ${p.ago || ''}
       </span>
       ${p.flair ? `<span class="post-flair" style="color:${esc(p.ccolor||'#C8922A')};border-color:${esc(p.ccolor||'#C8922A')}44">${esc(p.flair)}</span>` : ''}
@@ -187,7 +187,7 @@ async function loadFeed(reset = true) {
     });
     _feedOff += posts.length;
   } catch(e) { if(reset) cnt.innerHTML = emptyEl('close','Xatolik',e.message); }
-  _feedBusy = false;
+  finally { _feedBusy = false; }
 }
 
 function setFeedSort(sort) {
@@ -238,7 +238,9 @@ function setupMediaInDetail(container) {
 }
 
 async function loadComFeed(slug, sort = 'hot', reset = true) {
+  if (_feedBusy && !reset) return;
   const cnt = document.getElementById('com-feed-cnt'); if (!cnt) return;
+  _feedBusy = true;
   if (reset) { _comOff = 0; cnt.innerHTML = spinner(); }
   try {
     const posts = await API.comPosts(slug, sort, _comOff);
@@ -250,6 +252,7 @@ async function loadComFeed(slug, sort = 'hot', reset = true) {
     });
     _comOff += posts.length;
   } catch(e) { if(reset) cnt.innerHTML = emptyEl('close','Xatolik',e.message); }
+  finally { _feedBusy = false; }
 }
 
 async function votePost(id, vote) {
@@ -284,6 +287,11 @@ async function submitRootCmt(postId) {
   try {
     const cmt = await API.comment(postId, body);
     ta.value = '';
+    const cntBtn = document.querySelector(`#pc-${postId} .post-acts .pa`);
+    if (cntBtn) {
+      const n = parseInt((cntBtn.textContent||'').replace(/\D/g,'')) || 0;
+      cntBtn.innerHTML = IC.cmt + ' ' + fmtNum(n + 1) + ' Izoh';
+    }
     const cc  = document.getElementById('cmts-cnt');
     if (cc) {
       const d = document.createElement('div');
@@ -351,7 +359,7 @@ function buildCmtNode(c, postId, depth = 0) {
     <div class="av" style="width:24px;height:24px;font-size:9px;border-radius:50%;background:${esc(c.color||'#C8922A')};flex-shrink:0">
       ${c.avatar?`<img src="${esc(c.avatar)}" style="width:100%;height:100%;object-fit:cover" alt="">`:`<span style="color:#fff">${initials(c.username)}</span>`}
     </div>
-    <span class="cmt-author" onclick="openUser('${esc(c.username)}')">${esc(c.username)}</span>
+    <span class="cmt-author" onclick="openUser('${escJs(c.username)}')">${esc(c.username)}</span>
     <span class="cmt-score">${fmtNum(c.score||0)}</span>
     <span class="cmt-ago">${c.ago||''}</span>
   </div>
@@ -379,10 +387,13 @@ async function voteCmt(id, vote, btn) {
   if (!requireAuth()) return;
   try {
     const d = await API.voteCmt(id, vote);
-    const cmt = btn.closest('.cmt');
-    cmt.querySelector('.ca.up')?.classList.toggle('voted', d.my_vote===1);
+    const cmt = btn.closest('.cmt'); if (!cmt) return;
+    const up = cmt.querySelector('.ca.up');
+    up?.classList.toggle('voted', d.my_vote===1);
     cmt.querySelector('.ca.dn')?.classList.toggle('voted', d.my_vote===-1);
-    cmt.querySelector('.ca.up').innerHTML = IC.up + ' ' + fmtNum(d.score);
+    if (up) up.innerHTML = IC.up + ' ' + fmtNum(d.score);
+    const sc = cmt.querySelector('.cmt-score');
+    if (sc) sc.textContent = fmtNum(d.score);
   } catch(e) { toast(e.message); }
 }
 
@@ -401,21 +412,38 @@ async function delCmt(id) {
 }
 
 function copyLink(id) {
-  navigator.clipboard?.writeText(`${location.origin}/?post=${id}`).then(() => toast('Havola nusxalandi'));
+  const url = `${location.origin}/?post=${id}`;
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => toast('Havola nusxalandi')).catch(() => fallbackCopy(url));
+  } else fallbackCopy(url);
+}
+function fallbackCopy(text) {
+  // clipboard API HTTP'da ishlamaydi — zaxira usul
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    toast('Havola nusxalandi');
+  } catch { toast(text); }
 }
 
 function initScrollFeed() {
-  const area = document.getElementById('feed-area') || window;
-  const trigger = document.getElementById('scroll-trigger');
-  if (!trigger) return;
   const obs = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting && !_feedBusy) {
-      const sec = document.querySelector('.section.active')?.id;
-      if (sec === 'sec-home') loadFeed(false);
-      else if (sec === 'sec-community' && _curCom) loadComFeed(_curCom, _comSort, false);
+    if (!entries.some(e => e.isIntersecting)) return;
+    if (_feedBusy) return;
+    const sec = document.querySelector('.section.active')?.id;
+    if (sec === 'sec-home') loadFeed(false);
+    else if (sec === 'sec-community' && (window._curCom || _curCom)) {
+      loadComFeed(window._curCom || _curCom, _comSort, false);
     }
+  }, { rootMargin: '200px' });
+  // Ikkala trigger ham kuzatiladi — ilgari faqat home'dagisi kuzatilib,
+  // jamoa sahifasida "yana yuklash" hech qachon ishlamagan.
+  ['scroll-trigger', 'com-scroll-trigger'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) obs.observe(el);
   });
-  obs.observe(trigger);
 }
 
 function initFeedWS() {
@@ -468,7 +496,7 @@ window.openPost=openPost; window.loadComFeed=loadComFeed;
 window.votePost=votePost; window.savePost=savePost;
 window.submitRootCmt=submitRootCmt; window.submitReply=submitReply;
 window.renderComments=renderComments; window.buildCmtNode=buildCmtNode;
-window.voteCmt=voteCmt; window.delCmt=delCmt; window.copyLink=copyLink;
+window.voteCmt=voteCmt; window.delCmt=delCmt; window.copyLink=copyLink; window.fallbackCopy=fallbackCopy;
 window.toggleReplyForm=toggleReplyForm; window.initScrollFeed=initScrollFeed; window.initFeedWS=initFeedWS;
 window.votePoll=votePoll; window.buildPollHtml=buildPollHtml;
 

@@ -3,10 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>MindHub</title>
-<meta name="theme-color" content="#C8922A">
+<title>MindHub — G'oyalar jamoasi</title>
+<meta name="description" content="MindHub — o'zbek tilidagi jamoa platformasi: postlar, jamoalar, so'rovnomalar, xabarlar va qo'ng'iroqlar.">
+<meta name="theme-color" content="#C8922A" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#070B14" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="MindHub">
+<meta property="og:description" content="G'oyalar dunyosiga xush kelibsiz — o'zbek tilidagi jamoa platformasi.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/icons/launchericon-512x512.png">
+<meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/icons/launchericon-192x192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
 <link rel="manifest" href="manifest.json">
@@ -26,6 +35,11 @@
       <div class="form-row"><input class="inp" id="am-uname" placeholder="Username / Email" autocomplete="username"></div>
       <div class="form-row"><input class="inp" id="am-pass" placeholder="Parol" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAmLogin()"></div>
       <button class="btn btn-gold" style="width:100%" id="am-login-btn" onclick="doAmLogin()">Kirish</button>
+      <button class="auth-forgot" type="button" onclick="openForgot()">Parolni unutdingizmi?</button>
+      <div style="margin-top:14px;text-align:center">
+        <div style="font-size:12px;color:var(--tx4);margin-bottom:8px">yoki</div>
+        <div id="tg-login-container" style="display:flex;justify-content:center"></div>
+      </div>
     </div>
     <div id="am-tg-profile-form" style="display:none">
       <div style="text-align:center;margin-bottom:16px">
@@ -47,8 +61,13 @@
     </div>
     <div id="am-forgot-form" style="display:none">
       <div id="fg-step1">
-        <div style="font-size:13px;color:var(--tx3);margin-bottom:12px;text-align:center">Telegram orqali kirish</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:6px;text-align:center">Parolni tikla</div>
+        <div style="font-size:12.5px;color:var(--tx3);margin-bottom:14px;text-align:center;line-height:1.6">
+          Hisobingiz Telegram bilan bog'langan bo'lsa, parolsiz kirishingiz mumkin.
+          Keyin <strong>Sozlamalar → Parolni o'zgartirish</strong> bo'limida yangi parol qo'yasiz.
+        </div>
         <div id="tg-forgot-container" style="display:flex;justify-content:center"></div>
+        <button class="auth-forgot" type="button" onclick="switchAmTab('login')" style="margin-top:16px">← Kirishga qaytish</button>
       </div>
     </div>
   </div>
@@ -101,15 +120,15 @@
     </div>
     <div class="tb-search">
       <svg class="tb-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input placeholder="Qidirish..." oninput="onTopSearch(event)" autocomplete="off">
+      <input id="tb-search-inp" type="search" placeholder="Qidirish..." oninput="onTopSearch(event)" autocomplete="off" aria-label="Qidirish">
     </div>
     <div class="tb-right">
-      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()"></button>
+      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Mavzuni almashtirish" aria-label="Mavzuni almashtirish"></button>
       <button class="tb-ico" onclick="requireAuth(()=>{goSec('notifs');loadNotifs();markNotifs();})" title="Bildirishnomalar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         <span class="tb-notif-dot" id="notif-dot"></span>
       </button>
-      <button class="tb-ico" onclick="requireAuth(()=>{goSec('msgs');loadConvos();})">
+      <button class="tb-ico" onclick="requireAuth(()=>{goSec('msgs');loadConvos();})" title="Xabarlar" aria-label="Xabarlar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
       </button>
       <button class="tb-post-btn" onclick="requireAuth(()=>openSubmit())">
@@ -199,8 +218,9 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </div>
             </div>
-            <!-- INSTAGRAM-STYLE HORIZONTAL CONTACTS -->
-            <input class="msg-search" id="msg-search" placeholder="Qidirish..." oninput="filterConvos(this.value)">
+            <!-- HORIZONTAL CONTACTS (loadContactsScroll() shu konteynerga yozadi) -->
+            <div class="contacts-scroll" id="contacts-scroll" style="display:none"></div>
+            <input class="msg-search" id="msg-search" type="search" placeholder="Qidirish..." oninput="filterConvos(this.value)" aria-label="Suhbatlarni qidirish">
             <div class="convos" id="conv-list"></div>
           </div>
           <div class="chat-col">
@@ -325,7 +345,7 @@
       <div id="sub-img-drop" onclick="document.getElementById('sub-img-file').click()" style="border:2px dashed var(--border2);border-radius:var(--r-lg);padding:40px;text-align:center;cursor:pointer;color:var(--tx4);transition:border-color .2s">
         <div style="font-size:40px;margin-bottom:10px">🖼️</div>
         <div style="font-weight:600;margin-bottom:4px">Rasm yuklash uchun bosing</div>
-        <small>JPG, PNG, GIF, WEBP, HEIC (max 10MB)</small>
+        <small>JPG, PNG, GIF, WEBP, HEIC &middot; maksimum 10MB</small>
       </div>
       <div id="sub-img-preview"></div>
     </div>
@@ -682,53 +702,5 @@
 <script src="/js/posts.js"></script>
 <script src="/js/features.js"></script>
 <script src="/js/app.js"></script>
-<script>
-// Color selection helpers
-function selectCCColor(color, el) {
-  if (typeof _ccColor !== 'undefined') _ccColor = color;
-  document.getElementById('cc-color').value = color;
-  document.querySelectorAll('#cc-overlay .color-opt').forEach(b => { b.style.transform='scale(1)'; b.style.border='3px solid transparent'; b.style.boxShadow='none'; });
-  if (el) { el.style.transform='scale(1.15)'; el.style.border='3px solid white'; el.style.boxShadow='0 0 0 2px '+color; }
-  // Update avatar preview bg
-  const avWrap = document.getElementById('cc-avatar-wrap');
-  // update placeholder color
-}
-function selectECColor(color, el) {
-  document.getElementById('ec-color').value = color;
-  document.querySelectorAll('#ec-overlay .color-opt').forEach(b => { b.style.transform='scale(1)'; b.style.border='3px solid transparent'; b.style.boxShadow='none'; });
-  if (el) { el.style.transform='scale(1.15)'; el.style.border='3px solid white'; el.style.boxShadow='0 0 0 2px '+color; }
-}
-function previewCCBanner(inp) {
-  const f = inp.files?.[0]; if (!f) return;
-  const url = URL.createObjectURL(f);
-  const img = document.getElementById('cc-banner-preview');
-  const ph  = document.getElementById('cc-banner-placeholder');
-  if (img) { img.src=url; img.style.display='block'; }
-  if (ph)    ph.style.display='none';
-}
-function previewCCAvatar(inp) {
-  const f = inp.files?.[0]; if (!f) return;
-  const url = URL.createObjectURL(f);
-  const img = document.getElementById('cc-avatar-preview');
-  const ph  = document.getElementById('cc-avatar-placeholder');
-  if (img) { img.src=url; img.style.display='block'; }
-  if (ph)    ph.style.display='none';
-}
-function previewECBanner(inp) {
-  const f = inp.files?.[0]; if (!f) return;
-  const img = document.getElementById('ec-banner-preview');
-  if (img) { img.src=URL.createObjectURL(f); img.style.display='block'; }
-}
-function previewECAvatar(inp) {
-  const f = inp.files?.[0]; if (!f) return;
-  const img = document.getElementById('ec-avatar-preview');
-  if (img) { img.src=URL.createObjectURL(f); img.style.display='block'; }
-}
-// Init first color option as selected
-document.addEventListener('DOMContentLoaded', () => {
-  const first = document.querySelector('#cc-overlay .color-opt[data-color="#C8922A"]');
-  if (first) { first.style.transform='scale(1.15)'; first.style.border='3px solid white'; first.style.boxShadow='0 0 0 2px #C8922A'; }
-});
-</script>
 </body>
 </html>

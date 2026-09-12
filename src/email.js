@@ -1,11 +1,11 @@
+'use strict';
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
-const SMTP_USER = process.env.SMTP_USER || 'mindhubteamm@gmail.com';
-const SMTP_PASS = process.env.SMTP_PASS || 'kjvj wrbr wyqh tfti';
+const { SMTP_USER, SMTP_PASS, RESEND_API_KEY, hasEmail } = require('./config');
 
-async function sendVerifyCode(email, code, username) {
-  const html = `
+function buildHtml(code, username) {
+  return `
     <div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:32px;background:#f8f9fa;border-radius:16px">
       <div style="text-align:center;margin-bottom:24px">
         <div style="font-size:32px;font-weight:800;color:#C8922A">MindHub</div>
@@ -19,17 +19,24 @@ async function sendVerifyCode(email, code, username) {
       <div style="text-align:center;font-size:11px;color:#aaa;margin-top:20px">Agar siz parolni tiklashni so'ramagan bo'lsangiz, bu xabarni e'tiborsiz qoldiring.</div>
     </div>
   `;
+}
 
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+async function sendVerifyCode(email, code, username) {
+  if (!hasEmail) {
+    throw new Error('Email yuborish sozlanmagan (RESEND_API_KEY yoki SMTP_USER/SMTP_PASS kerak)');
+  }
+
+  const html    = buildHtml(code, username);
+  const subject = 'MindHub — Parol tiklash kodi';
 
   if (RESEND_API_KEY) {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'MindHub <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM || 'MindHub <onboarding@resend.dev>',
         to: [email],
-        subject: 'MindHub — Parol tiklash kodi',
+        subject,
         html
       })
     });
@@ -48,9 +55,9 @@ async function sendVerifyCode(email, code, username) {
     socketTimeout: 15000
   });
   return transporter.sendMail({
-    from: '"MindHub" <' + SMTP_USER + '>',
+    from: `"MindHub" <${SMTP_USER}>`,
     to: email,
-    subject: 'MindHub — Parol tiklash kodi',
+    subject,
     html
   });
 }

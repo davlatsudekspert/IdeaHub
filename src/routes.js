@@ -6,9 +6,10 @@ const url  = require('url');
 const { Q, hmac, db } = require('./db');
 const { verifyToken, makeToken, uid, randColor } = require('./helpers');
 const ws = require('./ws');
+const tg = require('./telegram');
+const { APP_URL } = require('./config');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
-const UPLOAD   = path.join(DATA_DIR, 'uploads');
+const { UPLOAD_DIR: UPLOAD } = require('./config');   // server.js bilan bitta papka
 if (!fs.existsSync(UPLOAD)) fs.mkdirSync(UPLOAD, { recursive: true });
 const tgPendingProfiles = new Map();
 
@@ -41,20 +42,39 @@ async function getAuthNotBanned(req, res) {
 async function readBody(req) {
   return new Promise((ok, err) => {
     let d = '';
-    req.on('data', c => d += c);
-    req.on('end', () => { try { ok(JSON.parse(d || '{}')); } catch { ok({}); } });
-    req.on('error', err);
+    let done = false;
+    req.on('data', c => {
+      d += c;
+      if (d.length > 2e6 && !done) { done = true; req.destroy(); ok({}); }
+    });
+    req.on('end', () => { if (done) return; done = true; try { ok(JSON.parse(d || '{}')); } catch { ok({}); } });
+    req.on('error', e => { if (!done) { done = true; err(e); } });
   });
 }
+// Eng katta ruxsat etilgan yuklama (video 500MB + zahira)
+const MAX_UPLOAD = 520 * 1024 * 1024;
+
 async function parseMultipart(req) {
   return new Promise((ok, err) => {
     const ct = req.headers['content-type'] || '';
-    const bm = ct.match(/boundary=(.+)/);
+    const bm = ct.match(/boundary=([^\s;]+)/);
     if (!bm) return ok({ fields: {}, files: {} });
-    const boundary = Buffer.from('--' + bm[1]);
+    const boundary = Buffer.from('--' + bm[1].trim());
     let chunks = [];
-    req.on('data', c => chunks.push(c));
-    req.on('error', err);
+    let total = 0;
+    let aborted = false;
+    req.on('data', c => {
+      total += c.length;
+      if (total > MAX_UPLOAD) {
+        aborted = true;
+        chunks = [];
+        req.destroy();
+        return ok({ fields: {}, files: {}, tooLarge: true });
+      }
+      chunks.push(c);
+    });
+    req.on('aborted', () => { if (!aborted) { aborted = true; ok({ fields: {}, files: {} }); } });
+    req.on('error', e => { if (!aborted) err(e); });
     req.on('end', () => {
       const body = Buffer.concat(chunks);
       const parts = [];
@@ -85,6 +105,7 @@ async function parseMultipart(req) {
           fields[name] = data.toString().trim();
         }
       }
+      if (aborted) return;
       ok({ fields, files });
     });
   });
@@ -97,6 +118,15 @@ function saveFile(fileObj, allowedExts) {
   fs.writeFileSync(path.join(UPLOAD, fn), fileObj.data);
   return `/uploads/${fn}`;
 }
+// Xabar qabul qiluvchini tekshirish: mavjud bo'lishi va o'zi bo'lmasligi kerak
+async function checkRecipient(res, fromId, toId) {
+  if (!toId) { json(res, { error: "Qabul qiluvchi ko'rsatilmagan" }, 400); return false; }
+  if (toId === fromId) { json(res, { error: "O'zingizga xabar yuborib bo'lmaydi" }, 400); return false; }
+  const target = await Q.uById(toId);
+  if (!target) { json(res, { error: 'Foydalanuvchi topilmadi' }, 404); return false; }
+  return true;
+}
+
 function ago(ts) {
   const d = Math.floor(Date.now()/1000) - ts;
   if (d < 60) return d + 's';
@@ -177,13 +207,9 @@ async function route(req, res) {
     const b = await readBody(req);
     const { id, first_name, username, photo_url, auth_date, hash } = b;
     if (!id || !auth_date || !hash) return json(res, { error: "Ma'lumotlar to'liq emas" }, 400);
-    const BOT_TOKEN = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
-    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
-    const dataCheckString = [`auth_date=${auth_date}`, `first_name=${first_name || ''}`, `id=${id}`, `photo_url=${photo_url || ''}`, `username=${username || ''}`].join('\n');
-    const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-    if (computedHash !== hash) return json(res, { error: "Tekshiruvdan o'tmadi" }, 403);
-    const age = Math.floor(Date.now() / 1000) - Number(auth_date);
-    if (age > 86400) return json(res, { error: "Sessiya muddati tugagan" }, 403);
+    if (!tg.hasTelegram) return json(res, { error: "Telegram bilan kirish sozlanmagan" }, 503);
+    const check = tg.verifyLoginPayload(b);
+    if (!check.ok) return json(res, { error: check.error || "Tekshiruvdan o'tmadi" }, 403);
     const tgId = String(id);
     let user = await Q.uByTgId(tgId);
     if (!user) {
@@ -195,9 +221,11 @@ async function route(req, res) {
   }
   if (p === '/api/auth/telegram-finish' && m === 'POST') {
     const b = await readBody(req);
-    const { tempToken, name, username } = b;
+    const tempToken = b.tempToken || b.token;
+    const { name, username } = b;
     if (!tempToken || !name || !username) return json(res, { error: "Ma'lumotlar to'liq emas" }, 400);
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return json(res, { error: 'Username: 3-20 belgi, faqat harf/raqam/_' }, 400);
+    for (const [k, v] of tgPendingProfiles) if (Date.now() > v.expires) tgPendingProfiles.delete(k);
     const pending = tgPendingProfiles.get(tempToken);
     if (!pending || Date.now() > pending.expires) return json(res, { error: "Sessiya tugagan. Qaytadan kirish kerak" }, 403);
     tgPendingProfiles.delete(tempToken);
@@ -215,6 +243,8 @@ async function route(req, res) {
     if (!username || !name || !email || !password) return json(res, { error: "Barcha maydonlarni to'ldiring" }, 400);
     if (password.length < 6) return json(res, { error: 'Parol kamida 6 belgi' }, 400);
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return json(res, { error: 'Username: 3-20 belgi, faqat harf/raqam/_' }, 400);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json(res, { error: "Email manzil noto'g'ri" }, 400);
+    if (name.trim().length < 2 || name.trim().length > 60) return json(res, { error: 'Ism 2-60 belgi bo\'lishi kerak' }, 400);
     if (await Q.uExists(username, email)) return json(res, { error: 'Bu username yoki email band' }, 409);
     const id = uid();
     await Q.uInsert(id, username.toLowerCase(), name, email.toLowerCase(), hmac(password), '#' + Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0'));
@@ -241,7 +271,7 @@ async function route(req, res) {
     if (user) {
       const token = require('crypto').randomBytes(32).toString('hex');
       await Q.rtInsert(token, user.id, Math.floor(Date.now()/1000) + 3600);
-      const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+      const appUrl = APP_URL;
       console.log('\n=== PAROL TIKLASH ===\nFoydalanuvchi:', user.username, '\nHavola:', `${appUrl}/?reset_token=${token}\n`);
     }
     return json(res, { ok: true });
@@ -288,17 +318,9 @@ async function route(req, res) {
         try {
           const u2 = await db.get('SELECT tg_chat_id FROM users WHERE id=$1', [user.id]);
           if (u2 && u2.tg_chat_id) {
-            const https = require('https');
-            const botToken = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
-            const msg = `🔐 MindHub parol tiklash kodi: ${code}\n\nBu kod 10 daqiqa davomida amal qiladi.`;
-            await new Promise((resolve) => {
-              const req2 = https.request(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }
-              }, (resp) => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => { sent = true; resolve(); }); });
-              req2.on('error', (e) => { console.error('TG send error:', e.message); resolve(); });
-              req2.write(JSON.stringify({ chat_id: u2.tg_chat_id, text: msg }));
-              req2.end();
-            });
+            const r = await tg.sendMessage(u2.tg_chat_id,
+              `🔐 MindHub parol tiklash kodi: ${code}\n\nBu kod 10 daqiqa davomida amal qiladi.`);
+            sent = !!(r && r.ok);
           }
         } catch (e) { console.error('TG fallback error:', e.message); }
       }
@@ -346,17 +368,21 @@ async function route(req, res) {
   }
   if (p === '/api/me/avatar' && m === 'POST') {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
-    const { files } = await parseMultipart(req);
+    const { files, tooLarge } = await parseMultipart(req);
+    if (tooLarge) return json(res, { error: 'Fayl juda katta' }, 413);
+    if (files.image && files.image.data.length > 5 * 1024 * 1024) return json(res, { error: "Rasm 5MB dan oshmasin" }, 400);
     const img = saveFile(files.image, ['.jpg','.jpeg','.png','.gif','.webp']);
-    if (!img) return json(res, { error: 'Rasm yuklanmadi' }, 400);
+    if (!img) return json(res, { error: 'Rasm yuklanmadi (JPG, PNG, GIF, WEBP)' }, 400);
     await Q.uUpdAv(img, u2);
     return json(res, { avatar: img });
   }
   if (p === '/api/me/banner' && m === 'POST') {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
-    const { files } = await parseMultipart(req);
+    const { files, tooLarge } = await parseMultipart(req);
+    if (tooLarge) return json(res, { error: 'Fayl juda katta' }, 413);
+    if (files.image && files.image.data.length > 5 * 1024 * 1024) return json(res, { error: "Rasm 5MB dan oshmasin" }, 400);
     const img = saveFile(files.image, ['.jpg','.jpeg','.png','.gif','.webp']);
-    if (!img) return json(res, { error: 'Rasm yuklanmadi' }, 400);
+    if (!img) return json(res, { error: 'Rasm yuklanmadi (JPG, PNG, GIF, WEBP)' }, 400);
     await Q.uUpdBanner(img, u2);
     return json(res, { banner: img });
   }
@@ -383,6 +409,11 @@ async function route(req, res) {
   }
 
   /* ══ USERS ══ */
+  if (p.match(/^\/api\/users\/search$/) && m === 'GET') {
+    const sq = (q.q || '').toLowerCase();
+    const users = await Q.uSearch('%'+sq+'%', '%'+sq+'%');
+    return json(res, users);
+  }
   if (p.match(/^\/api\/users\/[^/]+$/) && m === 'GET') {
     const u2 = getAuth(req);
     const param = p.split('/')[3];
@@ -397,11 +428,7 @@ async function route(req, res) {
     const is_me = u2 === user.id;
     return json(res, { ...user, posts, followers, following, is_following, is_me, online: ws.isOnline(user.id) });
   }
-  if (p.match(/^\/api\/users\/search$/) && m === 'GET') {
-    const sq = (q.q || '').toLowerCase();
-    const users = await Q.uSearch('%'+sq+'%', '%'+sq+'%');
-    return json(res, users);
-  }
+
   if (p.match(/^\/api\/users\/[^/]+\/follow$/) && m === 'POST') {
     const u2 = await getAuthNotBanned(req, res); if (!u2) return true;
     const param = p.split('/')[3];
@@ -431,10 +458,36 @@ async function route(req, res) {
   }
 
   /* ══ COMMUNITIES ══ */
+  /* Popular teams by views */
+  if (p === '/api/communities/popular' && m === 'GET') {
+    const u2 = getAuth(req);
+    const coms = await Q.comByViews();
+    const out = [];
+    for (const c of coms) {
+      const role = u2 ? await Q.comRoleGet(u2, c.id) : null;
+      out.push({
+        ...c,
+        is_member: u2 ? !!(await Q.memCheck(u2, c.id)) : false,
+        is_owner: u2 === c.owner_id,
+        is_admin: !!(role && role.role === 'admin'),
+        pending_request: u2 ? !!(await Q.comReqGet(u2, c.id)) : false
+      });
+    }
+    return json(res, out);
+  }
+  /* My requests */
+  if (p === '/api/communities/my-requests' && m === 'GET') {
+    const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
+    const reqs = await Q.comReqAll(u2);
+    return json(res, reqs);
+  }
   if (p === '/api/communities' && m === 'GET') {
     const u2 = getAuth(req);
     const sq = q.q ? q.q.toLowerCase() : null;
-    const coms = sq ? await Q.comSearch('%'+sq+'%','%'+sq+'%') : await Q.comAll();
+    let coms;
+    if (sq)                 coms = await Q.comSearch('%'+sq+'%','%'+sq+'%');
+    else if (q.mine && u2)  coms = await Q.comMine(u2);   // faqat o'z jamoalarim
+    else                    coms = await Q.comAll();
     const out = [];
     for (const c of coms) {
       const isMember = u2 ? !!(await Q.memCheck(u2, c.id)) : false;
@@ -513,7 +566,8 @@ async function route(req, res) {
     let avatar = com.avatar, banner = com.banner;
     let is_private = com.is_private;
     if (ct.includes('multipart')) {
-      const { fields, files } = await parseMultipart(req);
+      const { fields, files, tooLarge } = await parseMultipart(req);
+      if (tooLarge) return json(res, { error: 'Fayl juda katta' }, 413);
       name  = (fields.name  || com.name).trim();
       desc  = (fields.description || com.description || '').trim();
       rules = (fields.rules || com.rules || '').trim();
@@ -600,29 +654,8 @@ async function route(req, res) {
     }
     return json(res, { ok: true });
   }
-  /* Popular teams by views */
-  if (p === '/api/communities/popular' && m === 'GET') {
-    const u2 = getAuth(req);
-    const coms = await Q.comByViews();
-    const out = [];
-    for (const c of coms) {
-      const role = u2 ? await Q.comRoleGet(u2, c.id) : null;
-      out.push({
-        ...c,
-        is_member: u2 ? !!(await Q.memCheck(u2, c.id)) : false,
-        is_owner: u2 === c.owner_id,
-        is_admin: !!(role && role.role === 'admin'),
-        pending_request: u2 ? !!(await Q.comReqGet(u2, c.id)) : false
-      });
-    }
-    return json(res, out);
-  }
-  /* My requests */
-  if (p === '/api/communities/my-requests' && m === 'GET') {
-    const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
-    const reqs = await Q.comReqAll(u2);
-    return json(res, reqs);
-  }
+
+
 
   /* ══ POSTS ══ */
   if (p === '/api/posts' && m === 'GET') {
@@ -630,9 +663,9 @@ async function route(req, res) {
     const sort = q.sort || 'hot';
     const off  = parseInt(q.offset) || 0;
     let rows;
-    if (sort === 'new')  rows = await Q.pNew(off);
-    else if (sort === 'top') rows = await Q.pHot(off);
-    else rows = await Q.pHot(off);
+    if (sort === 'new')      rows = await Q.pNew(off);
+    else if (sort === 'top') rows = await Q.pTop(off);   // eng ko'p ovoz olgan (barcha vaqt)
+    else                     rows = await Q.pHot(off);   // ovoz + yangilik (trend)
     const out = [];
     for (const r of rows) {
       if (r.community_id) {
@@ -657,6 +690,12 @@ async function route(req, res) {
     const u2   = getAuth(req);
     const post = await Q.pOne(p.split('/')[3]);
     if (!post) return json(res, { error: 'Topilmadi' }, 404);
+    // Maxfiy jamoa posti faqat a'zolar/egasiga ko'rinadi
+    const pcom = await db.get('SELECT is_private, owner_id FROM communities WHERE id=$1', [post.community_id]);
+    if (pcom && pcom.is_private) {
+      const isMember = u2 ? !!(await Q.memCheck(u2, post.community_id)) : false;
+      if (!isMember && u2 !== pcom.owner_id) return json(res, { error: "Maxfiy jamoa posti" }, 403);
+    }
     const cm = await Q.cmByPost(post.id);
     const comments = [];
     for (const c of cm) comments.push(await fmtCmt(c, u2));
@@ -669,7 +708,8 @@ async function route(req, res) {
     let pollQuestion=null, pollOptions=null, pollDays=3;
 
     if (ct.includes('multipart')) {
-      const { fields, files } = await parseMultipart(req);
+      const { fields, files, tooLarge } = await parseMultipart(req);
+      if (tooLarge) return json(res, { error: 'Fayl juda katta (maksimum 500MB)' }, 413);
       title    = (fields.title    || '').trim();
       body     = (fields.body     || '').trim();
       comSlug  = (fields.community|| '').trim();
@@ -679,14 +719,24 @@ async function route(req, res) {
       pollQuestion = fields.poll_question || null;
       pollOptions  = fields.poll_options  ? JSON.parse(fields.poll_options) : null;
       pollDays     = parseInt(fields.poll_days) || 3;
-      if (files.image) { image = saveFile(files.image,['.jpg','.jpeg','.png','.gif','.webp','.heic']); type='image'; }
-      if (files.video) {
-        const vfile = files.video;
-        // Check size limit: 500MB
-        if (vfile.data.length > 500*1024*1024) return json(res, { error: "Video 500MB dan oshmasin" }, 400);
-        video = saveFile(files.video,['.mp4','.webm','.mov','.avi','.mkv']); type='video';
+      if (files.image) {
+        if (files.image.data.length > 10*1024*1024) return json(res, { error: "Rasm 10MB dan oshmasin" }, 400);
+        image = saveFile(files.image,['.jpg','.jpeg','.png','.gif','.webp','.heic','.heif']);
+        if (!image) return json(res, { error: 'Rasm formati qo\'llab-quvvatlanmaydi' }, 400);
+        type='image';
       }
-      if (files.audio) { audio = saveFile(files.audio,['.mp3','.wav','.ogg','.m4a','.aac','.webm']); type='audio'; }
+      if (files.video) {
+        if (files.video.data.length > 500*1024*1024) return json(res, { error: "Video 500MB dan oshmasin" }, 400);
+        video = saveFile(files.video,['.mp4','.webm','.mov','.avi','.mkv']);
+        if (!video) return json(res, { error: 'Video formati qo\'llab-quvvatlanmaydi' }, 400);
+        type='video';
+      }
+      if (files.audio) {
+        if (files.audio.data.length > 20*1024*1024) return json(res, { error: "Audio 20MB dan oshmasin" }, 400);
+        audio = saveFile(files.audio,['.mp3','.wav','.ogg','.m4a','.aac','.webm','.opus']);
+        if (!audio) return json(res, { error: 'Audio formati qo\'llab-quvvatlanmaydi' }, 400);
+        type='audio';
+      }
     } else {
       const b  = await readBody(req);
       title    = (b.title    || '').trim();
@@ -700,6 +750,8 @@ async function route(req, res) {
       pollDays     = parseInt(b.poll_days) || 3;
     }
     if (!title)   return json(res, { error: 'Sarlavha kerak' }, 400);
+    if (title.length > 300) return json(res, { error: 'Sarlavha 300 belgidan oshmasin' }, 400);
+    if (body.length > 20000) return json(res, { error: 'Matn 20000 belgidan oshmasin' }, 400);
     if (!comSlug) return json(res, { error: 'Jamoa tanlang' }, 400);
     const com = await Q.comBySlug(comSlug);
     if (!com) return json(res, { error: 'Jamoa topilmadi' }, 404);
@@ -741,13 +793,18 @@ async function route(req, res) {
     const vote = parseInt(b.vote);
     if (![1,-1].includes(vote)) return json(res, { error: 'Vote 1 yoki -1' }, 400);
     const ex = await Q.pvGet(u2, pid);
+    const prev = ex ? ex.vote : 0;
     let myVote = vote;
-    if (ex && ex.vote === vote) { await Q.pvDelete(u2, pid); myVote = 0; }
+    if (prev === vote) { await Q.pvDelete(u2, pid); myVote = 0; }
     else await Q.pvUpsert(u2, pid, vote);
     const c = await Q.pvCount(pid);
     const score = c.up - c.dn;
     await Q.pScore(score, c.up, c.dn, pid);
-    if (vote === 1 && own.user_id !== u2) await Q.uKarma(1, own.user_id);
+    // Karma faqat upvote qo'shilganda +1, olib tashlanganda -1 (ilgari ikkalasida ham +1 bo'lardi)
+    if (own.user_id !== u2) {
+      const delta = (myVote === 1 ? 1 : 0) - (prev === 1 ? 1 : 0);
+      if (delta) await Q.uKarma(delta, own.user_id);
+    }
     return json(res, { score, my_vote: myVote, upvotes: c.up, downvotes: c.dn });
   }
   if (p.match(/^\/api\/posts\/[^/]+\/save$/) && m === 'POST') {
@@ -794,7 +851,9 @@ async function route(req, res) {
       const isMember = u2 ? !!(await Q.memCheck(u2, com.id)) : false;
       if (!isMember && u2 !== com.owner_id) return json(res, { error: "Maxfiy jamoa, a'zo bo'ling" }, 403);
     }
-    const rows = sort === 'new' ? await Q.pComNew(slug, off) : await Q.pCom(slug, off);
+    const rows = sort === 'new' ? await Q.pComNew(slug, off)
+               : sort === 'top' ? await Q.pComTop(slug, off)
+               : await Q.pCom(slug, off);
     const out = [];
     for (const r of rows) out.push(await fmtPost(r, u2));
     return json(res, out);
@@ -808,6 +867,7 @@ async function route(req, res) {
     const b = await readBody(req);
     const body = (b.body || '').trim();
     if (!body) return json(res, { error: 'Izoh bo\'sh bo\'lmasin' }, 400);
+    if (body.length > 5000) return json(res, { error: 'Izoh 5000 belgidan oshmasin' }, 400);
     const parentId = b.parent_id || null;
     const depth = parentId ? ((await Q.cmDepth(parentId))?.depth || 0) + 1 : 0;
     const cid = uid();
@@ -856,8 +916,13 @@ async function route(req, res) {
     const own = await Q.cmOwner(cid); if (!own) return json(res, { error: 'Topilmadi' }, 404);
     const user = await Q.uById(u2);
     if (own.user_id !== u2 && !user?.is_admin) return json(res, { error: "Ruxsat yo'q" }, 403);
-    await db.run("DELETE FROM comment_votes WHERE comment_id=$1", [cid]);
-    await db.run("DELETE FROM comments WHERE id=$1", [cid]);
+    // Bolalar izohlarini ham hisobga olib o'chiramiz va sanoqni to'g'rilaymiz
+    const kids = await db.all('SELECT id FROM comments WHERE parent_id=$1', [cid]);
+    const ids = [cid, ...kids.map(k => k.id)];
+    await db.run('DELETE FROM comment_votes WHERE comment_id = ANY($1::text[])', [ids]);
+    await db.run('DELETE FROM comments WHERE id = ANY($1::text[]) OR parent_id=$2', [ids, cid]);
+    await Q.pDecCmt(ids.length, own.post_id);
+    await Q.uKarma(-1, own.user_id);
     ws.sendAll({ type: 'del_comment', data: { commentId: cid, postId: own.post_id } });
     return json(res, { ok: true });
   }
@@ -865,14 +930,15 @@ async function route(req, res) {
   /* ══ VOICE MESSAGE UPLOAD ══ */
   if (p === '/api/messages/voice' && m === 'POST') {
     const u2 = await getAuthNotBanned(req, res); if (!u2) return true;
-    const { fields, files } = await parseMultipart(req);
+    const { fields, files, tooLarge } = await parseMultipart(req);
+    if (tooLarge) return json(res, { error: 'Fayl juda katta' }, 413);
     const toId = fields.to_id || fields.to;
-    if (!toId) return json(res, { error: "Qabul qiluvchi ko'rsatilmagan" }, 400);
+    if (!(await checkRecipient(res, u2, toId))) return true;
     const vf = files.voice || files.audio;
     if (!vf || !vf.data || vf.data.length === 0) return json(res, { error: 'Audio topilmadi' }, 400);
-    const fn = uid() + '.webm';
-    fs.writeFileSync(path.join(UPLOAD, fn), vf.data);
-    const audioUrl = `/uploads/${fn}`;
+    if (vf.data.length > 20 * 1024 * 1024) return json(res, { error: "Ovozli xabar 20MB dan oshmasin" }, 400);
+    const audioUrl = saveFile(vf, ['.webm', '.ogg', '.mp3', '.m4a', '.wav', '.aac']);
+    if (!audioUrl) return json(res, { error: 'Audio formati qo\'llab-quvvatlanmaydi' }, 400);
     const duration = fields.duration || '0:00';
     const mid = uid();
     await Q.msgInsert(mid, u2, toId, '[Ovozli xabar]', 'voice', null, audioUrl, duration);
@@ -888,11 +954,13 @@ async function route(req, res) {
   /* ══ IMAGE MESSAGE UPLOAD ══ */
   if (p === '/api/messages/image' && m === 'POST') {
     const u2 = await getAuthNotBanned(req, res); if (!u2) return true;
-    const { fields, files } = await parseMultipart(req);
+    const { fields, files, tooLarge } = await parseMultipart(req);
+    if (tooLarge) return json(res, { error: 'Fayl juda katta' }, 413);
     const toId = fields.to_id || fields.to;
-    if (!toId) return json(res, { error: "Qabul qiluvchi ko'rsatilmagan" }, 400);
+    if (!(await checkRecipient(res, u2, toId))) return true;
     const imgFile = files.image;
     if (!imgFile || !imgFile.data || imgFile.data.length === 0) return json(res, { error: 'Rasm topilmadi' }, 400);
+    if (imgFile.data.length > 10 * 1024 * 1024) return json(res, { error: "Rasm 10MB dan oshmasin" }, 400);
     const imgUrl = saveFile(imgFile, ['.jpg','.jpeg','.png','.gif','.webp']);
     if (!imgUrl) return json(res, { error: 'Yaroqsiz rasm formati' }, 400);
     const mid = uid();
@@ -952,8 +1020,9 @@ async function route(req, res) {
       const other = await Q.uById(oid);
       if (!other) continue;
       const last  = await Q.msgLast(u2, oid, oid, u2);
-      const unread = (await Q.msgUnread(u2)).c;
-      convos.push({ other: { ...other }, last: last ? { ...last, ago: ago(last.created_at) } : null, unread });
+      // Har bir suhbat uchun alohida o'qilmaganlar soni (ilgari umumiy son qaytarilardi)
+      const unread = (await Q.msgUnreadFrom(oid, u2)).c;
+      convos.push({ other: { ...other, online: ws.isOnline(oid) }, last: last ? { ...last, ago: ago(last.created_at) } : null, unread });
     }
     return json(res, convos);
   }
@@ -964,11 +1033,23 @@ async function route(req, res) {
     const msgs = await Q.msgThread(u2, toId, toId, u2);
     return json(res, msgs.map(m => ({ ...m, ago: ago(m.created_at) })));
   }
+  if (p.match(/^\/api\/messages\/[^/]+$/) && m === 'DELETE') {
+    const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
+    const mid = p.split('/')[3];
+    const msg = await db.get('SELECT id,from_id,to_id FROM messages WHERE id=$1', [mid]);
+    if (!msg) return json(res, { error: 'Topilmadi' }, 404);
+    if (msg.from_id !== u2) return json(res, { error: "Faqat o'z xabaringizni o'chirasiz" }, 403);
+    await db.run('DELETE FROM messages WHERE id=$1', [mid]);
+    ws.sendTo(msg.to_id, { type: 'del_msg', data: { id: mid } });
+    ws.sendTo(u2,        { type: 'del_msg', data: { id: mid } });
+    return json(res, { ok: true });
+  }
   if (p === '/api/messages' && m === 'POST') {
     const u2 = await getAuthNotBanned(req, res); if (!u2) return true;
     const b  = await readBody(req);
     const toId = b.to_id || b.to;
-    if (!toId || !b.body?.trim()) return json(res, { error: "Xabar bo'sh" }, 400);
+    if (!b.body?.trim()) return json(res, { error: "Xabar bo'sh" }, 400);
+    if (!(await checkRecipient(res, u2, toId))) return true;
     const mid  = uid();
     const body = b.body.trim();
     await Q.msgInsert(mid, u2, toId, body, 'text', null, null, null);
@@ -1032,6 +1113,14 @@ async function route(req, res) {
     const u2 = getAuth(req); if (!u2) return json(res, { error: 'Unauthorized' }, 401);
     const user = await Q.uById(u2); if (!user?.is_admin) return json(res, { error: "Ruxsat yo'q" }, 403);
     const b    = await readBody(req);
+    if (!b.target_id) return json(res, { error: 'target_id kerak' }, 400);
+    if (b.target_id === u2 && ['ban','remAdmin'].includes(b.action)) {
+      return json(res, { error: "O'zingizga bu amalni qo'llay olmaysiz" }, 400);
+    }
+    if (b.action === 'ban') {
+      const tgt = await Q.uById(b.target_id);
+      if (!tgt) return json(res, { error: 'Foydalanuvchi topilmadi' }, 404);
+    }
     if (b.action === 'ban') {
       const dur = parseInt(b.duration) || 0;
       const expiresAt = dur > 0 ? Math.floor(Date.now()/1000) + dur * 86400 : null;
@@ -1063,24 +1152,15 @@ async function route(req, res) {
     const codeId = uid();
     const expiresAt = Math.floor(Date.now()/1000) + 600;
     await Q.tgCodeInsert(codeId, user.id, email, code, expiresAt);
-    if (user.tg_chat_id) {
-      const botToken = '8965764146:AAHqspmPCzIYFNc2hbQHg-4LsUVSL0K5eG0';
-      const telegramMsg = `🔐 MindHub parol tiklash kodi: ${code}\n\nBu kod 10 daqiqa davomida amal qiladi.\nAgar siz bu so'rovni yubormagan bo'lsangiz, xabarni e'tiborsiz qoldiring.`;
-      try {
-        const https = require('https');
-        const sendUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        const postData = JSON.stringify({ chat_id: user.tg_chat_id, text: telegramMsg });
-        const sendReq = https.request(sendUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' } }, (resp) => {
-          let data = '';
-          resp.on('data', chunk => data += chunk);
-          resp.on('end', () => { try { console.log('TG send:', JSON.parse(data)); } catch {} });
-        });
-        sendReq.on('error', (e) => console.log('TG send error:', e.message));
-        sendReq.write(postData);
-        sendReq.end();
-      } catch(e) { console.log('TG bot error:', e.message); }
-    } else {
-      console.log('No tg_chat_id for user:', user.username, '- code:', code);
+    if (!tg.hasTelegram) return json(res, { error: 'Telegram xizmati sozlanmagan' }, 503);
+    if (!user.tg_chat_id) {
+      return json(res, { error: "Bu akkaunt Telegram bilan bog'lanmagan. Avval @" + require('./config').TG_BOT_NAME + " botiga /start yuboring." }, 400);
+    }
+    {
+      const r = await tg.sendMessage(user.tg_chat_id,
+        `🔐 MindHub parol tiklash kodi: ${code}\n\nBu kod 10 daqiqa davomida amal qiladi.\n` +
+        `Agar siz bu so'rovni yubormagan bo'lsangiz, xabarni e'tiborsiz qoldiring.`);
+      if (!r || !r.ok) return json(res, { error: 'Telegramga yuborib bo\'lmadi' }, 502);
     }
     return json(res, { ok: true, message: 'Kod yuborildi. Telegramdan tekshiring.' });
   }

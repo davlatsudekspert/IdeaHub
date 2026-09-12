@@ -222,6 +222,11 @@ const SCHEMA = `
     UNIQUE(user_id, community_id)
   );
 
+  CREATE INDEX IF NOT EXISTS idx_posts_score ON posts (score DESC, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_posts_created ON posts (created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages (to_id, is_read);
+  CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments (parent_id);
+
   CREATE TABLE IF NOT EXISTS tg_codes (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -242,7 +247,7 @@ const Q = {
   uByUsername:(uname) => db.get('SELECT id,username,name,email FROM users WHERE lower(username)=lower($1)', [uname]),
   uByPhone:   (phone) => db.get('SELECT id,username,name,email FROM users WHERE phone=$1', [phone]),
   uByPhoneFull:(phone)=> db.get('SELECT * FROM users WHERE phone=$1', [phone]),
-  uSearch:    (p1, p2) => db.all('SELECT id,username,name,color,avatar,karma FROM users WHERE lower(username) LIKE $1 OR lower(name) LIKE $2 LIMIT 20', [p1, p2]),
+  uSearch:    (p1, p2) => db.all('SELECT id,username,name,color,avatar,karma,followers,bio FROM users WHERE lower(username) LIKE $1 OR lower(name) LIKE $2 ORDER BY followers DESC, karma DESC LIMIT 20', [p1, p2]),
   uInsert:    (id, username, name, email, pass, color) => db.run('INSERT INTO users(id,username,name,email,pass,color) VALUES($1,$2,$3,$4,$5,$6)', [id, username, name, email, pass, color]),
   uExists:    (username, email) => db.get('SELECT id FROM users WHERE lower(username)=lower($1) OR lower(email)=lower($2)', [username, email]),
   uUpdProf:   (name, bio, id) => db.run('UPDATE users SET name=$1,bio=$2 WHERE id=$3', [name, bio, id]),
@@ -280,10 +285,18 @@ const Q = {
   memLeave:  (user_id, community_id) => db.run('DELETE FROM memberships WHERE user_id=$1 AND community_id=$2', [user_id, community_id]),
 
   /* posts */
-  pHot:    (off) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id ORDER BY p.score DESC,p.created_at DESC LIMIT 25 OFFSET $1', [off]),
+  // "Hot": ovoz + yangilik (Reddit uslubidagi oddiy vaqt og'irligi)
+  pHot:    (off) => db.all(`SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor
+      FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id
+      ORDER BY (p.score / POWER(GREATEST((extract(epoch from now())::int - p.created_at) / 3600.0, 0) + 2, 1.5)) DESC,
+               p.created_at DESC
+      LIMIT 25 OFFSET $1`, [off]),
+  // "Top": barcha vaqt bo'yicha eng ko'p ovoz olganlar
+  pTop:    (off) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id ORDER BY p.score DESC,p.created_at DESC LIMIT 25 OFFSET $1', [off]),
   pNew:    (off) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id ORDER BY p.created_at DESC LIMIT 25 OFFSET $1', [off]),
   pCom:    (slug, off) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id WHERE lower(c.slug)=lower($1) ORDER BY p.score DESC,p.created_at DESC LIMIT 25 OFFSET $2', [slug, off]),
   pComNew: (slug, off) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id WHERE lower(c.slug)=lower($1) ORDER BY p.created_at DESC LIMIT 25 OFFSET $2', [slug, off]),
+  pComTop: (slug, off) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id WHERE lower(c.slug)=lower($1) ORDER BY p.score DESC,p.created_at DESC LIMIT 25 OFFSET $2', [slug, off]),
   pByUser: (user_id) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id WHERE p.user_id=$1 ORDER BY p.created_at DESC LIMIT 25', [user_id]),
   pOne:    (id) => db.get('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id WHERE p.id=$1', [id]),
   pInsert: (id, user_id, community_id, title, body, link, image, video, audio, type, flair) => db.run('INSERT INTO posts(id,user_id,community_id,title,body,link,image,video,audio,type,flair) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)', [id, user_id, community_id, title, body, link, image, video, audio, type, flair]),
@@ -292,6 +305,7 @@ const Q = {
   pOwner:  (id) => db.get('SELECT user_id,community_id FROM posts WHERE id=$1', [id]),
   pScore:  (score, upvotes, downvotes, id) => db.run('UPDATE posts SET score=$1,upvotes=$2,downvotes=$3 WHERE id=$4', [score, upvotes, downvotes, id]),
   pIncCmt: (id) => db.run('UPDATE posts SET comment_count=comment_count+1 WHERE id=$1', [id]),
+  pDecCmt: (n, id) => db.run('UPDATE posts SET comment_count=GREATEST(0,comment_count-$1) WHERE id=$2', [n, id]),
   pSearch: (p1, p2) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id WHERE lower(p.title) LIKE $1 OR lower(p.body) LIKE $2 ORDER BY p.score DESC LIMIT 20', [p1, p2]),
   pSaved:  (user_id) => db.all('SELECT p.*,u.username,u.color,u.avatar,c.slug as cslug,c.name as cname,c.color as ccolor FROM posts p JOIN users u ON p.user_id=u.id JOIN communities c ON p.community_id=c.id JOIN saved_posts sp ON sp.post_id=p.id WHERE sp.user_id=$1 ORDER BY sp.saved_at DESC', [user_id]),
 
@@ -335,6 +349,7 @@ const Q = {
   msgMarkRead: (from_id, to_id) => db.run('UPDATE messages SET is_read=1 WHERE from_id=$1 AND to_id=$2', [from_id, to_id]),
   msgLast:     (a, b, c, d) => db.get('SELECT * FROM messages WHERE (from_id=$1 AND to_id=$2) OR (from_id=$3 AND to_id=$4) ORDER BY created_at DESC LIMIT 1', [a, b, c, d]),
   msgUnread:   (to_id) => db.get('SELECT COUNT(*)::int as c FROM messages WHERE to_id=$1 AND is_read=0', [to_id]),
+  msgUnreadFrom: (from_id, to_id) => db.get('SELECT COUNT(*)::int as c FROM messages WHERE from_id=$1 AND to_id=$2 AND is_read=0', [from_id, to_id]),
 
   /* notifications */
   nInsert:   (id, to_id, from_id, type, post_id, comment_id, msg) => db.run('INSERT INTO notifications(id,to_id,from_id,type,post_id,comment_id,msg) VALUES($1,$2,$3,$4,$5,$6,$7)', [id, to_id, from_id, type, post_id, comment_id, msg]),
@@ -386,7 +401,12 @@ const Q = {
   comRoleDel:    (user_id, community_id) => db.run('DELETE FROM community_roles WHERE user_id=$1 AND community_id=$2', [user_id, community_id]),
   comRoleList:   (community_id) => db.all('SELECT cr.user_id,cr.role,u.username,u.name,u.avatar,u.color FROM community_roles cr JOIN users u ON cr.user_id=u.id WHERE cr.community_id=$1', [community_id]),
   comIsAdmin:    (user_id, community_id) => db.get('SELECT 1 FROM community_roles WHERE user_id=$1 AND community_id=$2 AND role=$3', [user_id, community_id, 'admin']),
-  comCanManage:  (user_id, community_id) => db.get('SELECT 1 FROM communities WHERE id=$1 AND owner_id=$2', [user_id, community_id]) || db.get('SELECT 1 FROM community_roles WHERE user_id=$1 AND community_id=$2 AND role=$3', [user_id, community_id, 'admin']),
+  comCanManage:  async (user_id, community_id) => {
+    const owner = await db.get('SELECT 1 FROM communities WHERE id=$1 AND owner_id=$2', [community_id, user_id]);
+    if (owner) return true;
+    const role = await db.get('SELECT 1 FROM community_roles WHERE user_id=$1 AND community_id=$2 AND role=$3', [user_id, community_id, 'admin']);
+    return !!role;
+  },
 
   /* community views */
   comIncViews:   (id) => db.run('UPDATE communities SET views=views+1 WHERE id=$1', [id]),

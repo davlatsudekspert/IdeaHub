@@ -1,5 +1,22 @@
-"*.db" 
-"*.db-shm" 
-"*.db-wal" 
-"data/" 
+# DIQQAT: bu qatorlar ilgari qo'shtirnoq ichida yozilgan edi ("*.db"), git esa
+# qo'shtirnoqni naqsh qismi deb qabul qiladi — shu sababli hech narsa
+# e'tiborsiz qolmayotgan edi. Endi to'g'ri yozilgan.
 node_modules/
+
+# Ma'lumotlar va yuklangan fayllar (server ishlayotganda yaratiladi)
+data/
+uploads/
+
+# SQLite qoldiqlari (loyiha PostgreSQL'ga o'tgan)
+*.db
+*.db-shm
+*.db-wal
+
+# Muhit o'zgaruvchilari — maxfiy kalitlar hech qachon repoga tushmasin
+.env
+.env.*
+!.env.example
+
+# Log va vaqtinchalik fayllar
+*.log
+.DS_Store

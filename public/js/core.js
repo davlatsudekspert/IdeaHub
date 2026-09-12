@@ -18,17 +18,26 @@ const IC = {
   send:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`,
   sun:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
   moon:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`,
+  close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  bell:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>`,
+  people:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>`,
+  search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
 };
 
 /* ═══ UTILS ═══ */
-function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+/* onclick="fn('...')" ichiga matn qo'yish uchun: avval JS uchun, keyin HTML uchun qalqon.
+   esc() yolg'iz yetarli emas — apostrof ( O'zbekiston ) JS satrini buzadi. */
+function escJs(s) { return esc(String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
 function initials(n) { return (n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 function fmtNum(n) { if(n==null) return '0'; return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'k':String(n); }
 function fmtTime(sec) { if(!sec||isNaN(sec)) return '0:00'; const m=Math.floor(sec/60),s=Math.floor(sec%60); return m+':'+(s<10?'0':'')+s; }
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
 function spinner() { return '<div class="spin"></div>'; }
 function emptyEl(icon, title, desc='') {
-  return `<div class="empty"><div class="empty-icon">${IC[icon]||icon}</div><div class="empty-title">${esc(title)}</div>${desc?`<div class="empty-desc">${esc(desc)}</div>`:''}</div>`;
+  // IC[icon] bo'lmasa va oddiy so'z berilsa — xom matn ko'rsatmaslik uchun zaxira ikonka
+  const ico = IC[icon] || (/^<svg|^[^a-zA-Z]/.test(String(icon||'')) ? icon : IC.bell);
+  return `<div class="empty"><div class="empty-icon">${ico}</div><div class="empty-title">${esc(title)}</div>${desc?`<div class="empty-desc">${esc(desc)}</div>`:''}</div>`;
 }
 function toast(msg, dur=3200) {
   const t = document.getElementById('toast'); if(!t) return;
@@ -76,9 +85,18 @@ async function api(method, path, body=null, isForm=false) {
     if (isForm) { opts.body = body; }
     else { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
   }
-  const res = await fetch('/api'+path, opts);
-  if (!res.ok) { const e = await res.json().catch(()=>({error:res.statusText})); throw new Error(e.error||'Xatolik'); }
-  return res.json();
+  let res;
+  try {
+    res = await fetch('/api'+path, opts);
+  } catch {
+    throw new Error('Internetga ulanish yo\'q');
+  }
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({ error: res.status===413 ? 'Fayl juda katta' : res.statusText }));
+    throw new Error(e.error||'Xatolik');
+  }
+  if (res.status === 204) return {};
+  return res.json().catch(()=>({}));
 }
 const API = {
   login:    (u,p)      => api('POST','/auth/login',{username:u,password:p}),
@@ -87,6 +105,9 @@ const API = {
   sendCode:(u)         => api('POST','/auth/send-code',{username:u}),
   verifyCode:(u,c)     => api('POST','/auth/verify-code',{username:u,code:c}),
   resetPass:(t,p)      => api('POST','/auth/reset',{token:t,new_pass:p}),
+  // checkResetToken() bu metodni chaqirardi, lekin u e'lon qilinmagan edi —
+  // natijada parol tiklash havolasi har doim "eskirgan" deb ko'rsatilardi.
+  verifyReset:(t)      => api('POST','/auth/reset/verify',{token:t}),
   me:       ()         => api('GET','/me'),
   updMe:    (n,b)      => api('PUT','/me',{name:n,bio:b}),
   updPhone: (p)        => api('PUT','/me/phone',{phone:p}),
@@ -98,10 +119,11 @@ const API = {
   followUser:(id)      => api('POST','/users/'+id+'/follow'),
   communities:()       => api('GET','/communities'),
   getCom:   (slug)     => api('GET','/communities/'+slug),
-  topComs:  ()         => api('GET','/communities?sort=top'),
-  popularComs:()        => api('GET','/communities?sort=top'),
-
-  mineComs: ()         => { const u=window._me; return u?api('GET','/communities?mine=1').catch(()=>api('GET','/communities')):Promise.resolve([]); },
+  // /api/communities "sort" ni bilmaydi; mashhurlar alohida endpoint orqali keladi
+  topComs:  ()         => api('GET','/communities/popular'),
+  popularComs:()       => api('GET','/communities/popular'),
+  mineComs: ()         => window._me ? api('GET','/communities?mine=1').catch(()=>api('GET','/communities')) : Promise.resolve([]),
+  searchUsers:(q)      => api('GET','/users/search?q='+encodeURIComponent(q)),
   joinCom:  (slug)     => api('POST','/communities/'+slug+'/join'),
   updateCom:(slug,fd,isForm) => api('PUT','/communities/'+slug,fd,isForm),
   comPosts: (slug,sort,off) => api('GET',`/communities/${slug}/posts?sort=${sort}&offset=${off||0}`),
@@ -117,6 +139,13 @@ const API = {
   messages: ()         => api('GET','/messages'),
   thread:   (uid)      => api('GET','/messages/'+uid),
   sendMsg:  (toId,body)=> api('POST','/messages',{to_id:toId,body}),
+  delMsg:   (id)       => api('DELETE','/messages/'+id),
+  report:   (b)        => api('POST','/reports',b),
+  comAdminAdd:(slug,userId) => api('POST','/communities/'+slug+'/admin',{user_id:userId}),
+  comAdminDel:(slug,userId) => api('DELETE','/communities/'+slug+'/admin',{user_id:userId}),
+  comRequest:(slug,reqId,action) => api('POST','/communities/'+slug+'/request/'+reqId,{action}),
+  delCom:   (slug)     => api('DELETE','/communities/'+slug),
+  sendChatImage:(fd)   => api('POST','/messages/image',fd,true),
   notifications:()     => api('GET','/notifications'),
   notifCount:()        => api('GET','/notifications/count'),
   markNotifs:()        => api('POST','/notifications/read'),
@@ -137,9 +166,10 @@ const API = {
 
 /* ═══ WEBSOCKET ═══ */
 const WS = (() => {
-  let ws=null, _cbs={}, _pingInterval=null;
+  let ws=null, _cbs={}, _pingInterval=null, _closing=false, _retry=0, _retryTimer=null;
   function connect(tok) {
     if (ws && ws.readyState < 2) return;
+    _closing = false;
     const proto = location.protocol==='https:'?'wss:':'ws:';
     ws = new WebSocket(`${proto}//${location.host}?token=${encodeURIComponent(tok||'')}`);
     ws.onmessage = e => {
@@ -150,14 +180,25 @@ const WS = (() => {
     };
     ws.onclose = () => {
       clearInterval(_pingInterval);
-      setTimeout(()=>tok&&connect(tok), 3000);
+      // disconnect() chaqirilgan bo'lsa qayta ulanmaymiz (ilgari logout'dan keyin ham ulanardi)
+      if (_closing || !tok) return;
+      _retry = Math.min(_retry + 1, 6);
+      clearTimeout(_retryTimer);
+      _retryTimer = setTimeout(()=>connect(tok), Math.min(1000 * 2 ** _retry, 30000));
     };
     ws.onopen = () => {
+      _retry = 0;
       _pingInterval = setInterval(()=>{ try { ws.send('{}'); } catch {} }, 25000);
     };
+    ws.onerror = () => {};
   }
   function on(type, fn) { (_cbs[type]||(_cbs[type]=[])).push(fn); }
-  function disconnect() { clearInterval(_pingInterval); ws?.close(); ws=null; }
+  function disconnect() {
+    _closing = true;
+    clearInterval(_pingInterval); clearTimeout(_retryTimer);
+    try { ws?.close(); } catch {}
+    ws = null;
+  }
   return { connect, on, disconnect };
 })();
 
@@ -285,18 +326,17 @@ async function submitReport() {
   if (!_reportTarget) return;
   const reason = (document.getElementById('report-reason-text').value || '').trim() || _reportReason;
   if (!reason) { toast('Sabab kiriting'); return; }
+  const btn = document.getElementById('report-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
   try {
     const body = { reason };
     if (_reportType === 'post') body.post_id = _reportTarget;
     else body.comment_id = _reportTarget;
-    await fetch('/api/reports', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Tok.get() },
-      body: JSON.stringify(body)
-    });
+    await API.report(body);
     closeReport();
     toast("Shikoyat yuborildi. Rahmat!");
-  } catch(e) { toast('Xatolik'); }
+  } catch(e) { toast(e.message || 'Xatolik'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Yuborish'; } }
 }
 
 window.openReport = openReport;
@@ -313,6 +353,7 @@ async function initPushNotifications() {
 }
 async function requestPushPermission() {
   if (!('Notification' in window)) { toast('Brauzer bildirishnomalarni qo\'llab-quvvatlamaydi'); return; }
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') { toast('Bildirishnomalar faqat HTTPS orqali ishlaydi'); return; }
   const perm = await Notification.requestPermission();
   if (perm === 'granted') {
     await registerPush();
@@ -326,13 +367,14 @@ async function registerPush() {
   localStorage.setItem('push_enabled', '1');
 }
 function showBrowserNotif(title, body, icon, onClick) {
-  if (Notification.permission !== 'granted' || document.hasFocus()) return;
-  const n = new Notification(title, { body, icon: icon || '/favicon.ico', badge: '/favicon.ico' });
+  // Notification ba'zi brauzerlarda/HTTP'da mavjud emas — tekshirmasdan ishlatish xato berardi
+  if (!('Notification' in window) || Notification.permission !== 'granted' || document.hasFocus()) return;
+  const n = new Notification(title, { body, icon: icon || '/favicon.png', badge: '/favicon.png' });
   if (onClick) n.onclick = onClick;
   setTimeout(()=>n.close(), 8000);
 }
 
-window.IC=IC; window.esc=esc; window.initials=initials; window.fmtNum=fmtNum; window.fmtTime=fmtTime;
+window.IC=IC; window.esc=esc; window.escJs=escJs; window.initials=initials; window.fmtNum=fmtNum; window.fmtTime=fmtTime;
 window.debounce=debounce; window.spinner=spinner; window.emptyEl=emptyEl; window.toast=toast;
 window.avStyle=avStyle; window.avHtml=avHtml; window.curSec=curSec; window.goSec=goSec;
 window.Tok=Tok; window.API=API; window.WS=WS;
