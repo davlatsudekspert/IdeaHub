@@ -97,45 +97,56 @@
   }
 }
 :root {
-  /* Davlat uslubi: navy — struktura, gold — urg'u (hech qachon katta fon sifatida emas) */
+  /* Davlat portali uslubi (REDESIGN.md §2): och fon standart, navy — struktura,
+     gold — faqat urg'u/CTA, hech qachon katta fon sifatida emas. */
   --navy-900: #0A2342;
   --navy-800: #10315C;
   --navy-700: #17427A;
   --navy-500: #2A5FA8;
   --navy-100: #E8EEF7;
+  --teal-600: #0F7B8A;   /* hero gradientning ikkinchi rangi, ikkilamchi urg'u */
 
-  --gold:      #D4A017;
+  --gold:      #D4A017;  /* = gold-500, asosiy CTA fon */
   --gold-lt:   #E5B84B;
-  --gold-dk:   #B8860B;
+  --gold-dk:   #B8860B;  /* = gold-600, oq fonda matn uchun xavfsiz oltin */
+  --gold-100:  #FDF6E3;  /* badge/urg'u fon rangi (qattiq, shaffof emas) */
   --gold-glow: rgba(212,160,23,.22);
   --gold-soft: rgba(212,160,23,.1);
   --gold-bd:   rgba(212,160,23,.28);
 
-  --bg:        #F7F9FC;
-  --bg2:       #EEF2F8;
-  --bg3:       #E4EAF3;
-  --surface:   #FFFFFF;
-  --surface2:  #F7F9FC;
-  --border:    rgba(10,35,66,.08);
-  --border2:   rgba(10,35,66,.14);
-  --shadow:    0 1px 3px rgba(10,35,66,.07), 0 4px 12px rgba(10,35,66,.05);
-  --shadow-lg: 0 8px 32px rgba(10,35,66,.14);
+  --canvas:      #F4F7FB;  /* sahifa foni — och ko'k-kulrang, OQ EMAS, KREM EMAS */
+  --bg:          #F4F7FB;  /* = --canvas, eski nom bilan moslik uchun */
+  --surface:     #FFFFFF;  /* kartalar, panellar */
+  --surface-alt: #EDF2F9;  /* jadval sarlavhasi, hover qator, faol bo'lmagan tab */
+  --bg2:         #EDF2F9;  /* = --surface-alt, eski nom */
+  --bg3:         #E1E8F2;
+  --surface2:    #F4F7FB;
+  --border:        #E1E8F2;  /* 1px hairline, HAR BIR kartada */
+  --border-strong: #CBD6E6;
+  --border2:       #CBD6E6;  /* = --border-strong, eski nom */
+  --shadow:    0 1px 2px rgba(16,32,64,.04);
+  --shadow-lg: 0 4px 12px rgba(16,32,64,.08);
 
-  --tx1: #0F172A;
-  --tx2: #1E293B;
-  --tx3: #475569;
-  --tx4: #64748B;
+  --ink:       #0F1E33;  /* asosiy matn */
+  --ink-muted: #52637A;  /* ikkilamchi matn — bundan ochroq BO'LMASIN */
+  --tx1: #0F1E33;  /* = --ink */
+  --tx2: #1E2A3F;
+  --tx3: #3D4C61;
+  --tx4: #52637A;  /* = --ink-muted, eng past qavat shu yerda to'xtaydi */
 
+  --ok:    #14794F;
+  --warn:  #B45309;
+  --danger:#B42318;
   --up:  #B8860B;
   --dn:  #2A5FA8;
-  --red: #B42318;
-  --grn: #1E7A4D;
+  --red: #B42318;  /* = --danger */
+  --grn: #14794F;  /* = --ok */
   --blu: #2A5FA8;
 
   --sb-w: 248px;
   --tb-h: 56px;
   --r:    8px;
-  --r-lg: 14px;
+  --r-lg: 12px;
   --r-xl: 20px;
 }
 
@@ -145,28 +156,38 @@
   --navy-700: #10315C;
   --navy-500: #2A5FA8;
   --navy-100: #17427A;
+  --teal-600: #2BAFC2;
 
-  --bg:        #060F1F;
-  --bg2:       #0A2342;
-  --bg3:       #10315C;
-  --surface:   #0A2342;
-  --surface2:  #10315C;
-  --border:    rgba(212,160,23,.12);
-  --border2:   rgba(212,160,23,.2);
+  --canvas:      #060F1F;
+  --bg:          #060F1F;
+  --surface:     #0A2342;
+  --surface-alt: #10315C;
+  --bg2:         #10315C;
+  --bg3:         #17427A;
+  --surface2:    #10315C;
+  --border:        rgba(212,160,23,.12);
+  --border-strong: rgba(212,160,23,.2);
+  --border2:       rgba(212,160,23,.2);
   --shadow:    0 1px 4px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.4);
   --shadow-lg: 0 8px 40px rgba(0,0,0,.65);
+  --ink:       #F1F5F9;
+  --ink-muted: #94A3B8;
   --tx1: #F1F5F9;
   --tx2: #CBD5E1;
   --tx3: #94A3B8;
-  --tx4: #7C93AC;
+  --tx4: #94A3B8;
 
   --gold:      #E5B84B;
   --gold-lt:   #F0CB6E;
   --gold-dk:   #D4A017;
+  --gold-100:  rgba(229,184,75,.14);
   --gold-glow: rgba(229,184,75,.25);
   --gold-soft: rgba(229,184,75,.1);
   --gold-bd:   rgba(229,184,75,.3);
 
+  --ok:    #4ADE80;
+  --warn:  #F0B84B;
+  --danger:#FF6B6B;
   --up:  #E5B84B;
   --dn:  #6FA0FF;
   --red: #FF6B6B;
@@ -400,8 +421,8 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
   box-shadow: 0 2px 8px rgba(0,0,0,.4);
 }
 [data-theme="dark"] .btn-gold:hover:not(:disabled) {
-  background: linear-gradient(135deg, #9B4FFF, #33DDFF);
-  box-shadow: 0 0 30px rgba(0,212,255,.4), 0 4px 16px rgba(0,0,0,.5);
+  background: var(--gold-lt);
+  box-shadow: 0 4px 16px rgba(0,0,0,.5);
   transform: translateY(-1px);
 }
 [data-theme="dark"] .bubble.me {
@@ -415,32 +436,32 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
   box-shadow: 0 2px 20px rgba(0,0,0,.5);
 }
 [data-theme="dark"] .post-card {
-  border-color: rgba(99,179,237,.06);
+  border-color: var(--border);
   background: var(--surface);
 }
 [data-theme="dark"] .post-card:hover {
-  border-color: rgba(0,212,255,.2);
-  box-shadow: 0 4px 20px rgba(0,212,255,.08);
+  border-color: var(--gold-bd);
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
 }
 [data-theme="dark"] .inp:focus,
 [data-theme="dark"] .reply-ta:focus,
 [data-theme="dark"] .chat-inp:focus,
 [data-theme="dark"] .msg-search:focus {
   border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(0,212,255,.12), 0 0 15px rgba(0,212,255,.1);
+  box-shadow: 0 0 0 3px var(--gold-soft);
 }
 [data-theme="dark"] .conv.active {
-  background: rgba(0,212,255,.06);
+  background: var(--gold-soft);
   border-left-color: var(--gold);
 }
-[data-theme="dark"] .v-btn.up.voted { color: var(--gold); filter: drop-shadow(0 0 4px var(--gold)); }
+[data-theme="dark"] .v-btn.up.voted { color: var(--gold); }
 [data-theme="dark"] .v-score.up { color: var(--gold); }
-[data-theme="dark"] .notif.unread { background: rgba(0,212,255,.04); }
-[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(0,212,255,.15); }
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,.3); }
+[data-theme="dark"] .notif.unread { background: var(--gold-soft); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border2); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: var(--gold-bd); }
 [data-theme="dark"] .auth-wrap {
-  border-color: rgba(0,212,255,.15);
-  box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 40px rgba(0,212,255,.05);
+  border-color: var(--border2);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
 }
 
 /* === CUSTOM MEDIA PLAYER === */
@@ -1300,13 +1321,13 @@ body { overflow-x: hidden; }
 ════════════════════════════════════ */
 @media (max-width: 600px) {
   [data-theme="dark"] #topbar {
-    box-shadow: 0 2px 24px rgba(0,0,0,.5), 0 1px 0 rgba(0,212,255,.06);
+    box-shadow: 0 2px 24px rgba(0,0,0,.5);
   }
   [data-theme="dark"] #bottom-nav {
-    box-shadow: 0 -4px 24px rgba(0,0,0,.6), 0 -1px 0 rgba(0,212,255,.06);
+    box-shadow: 0 -4px 24px rgba(0,0,0,.6);
   }
   [data-theme="dark"] .msg-wrap {
-    border-color: rgba(0,212,255,.06);
+    border-color: var(--border);
   }
   [data-theme="dark"] .bubble.me {
     background: var(--gold);
@@ -1370,13 +1391,13 @@ body { overflow-x: hidden; }
   background: linear-gradient(135deg, #22c55e, #15803d);
 }
 .call-ctl.off {
-  background: rgba(239,68,68,.22) !important;
-  color: #f87171 !important;
+  background: rgba(180,35,24,.22) !important;
+  color: var(--danger) !important;
 }
 .call-ctl.off::after {
   content: ''; position: absolute; top: 50%; left: 50%;
   width: 60%; height: 2px; border-radius: 2px;
-  background: #f87171; transform: translate(-50%, -50%) rotate(-45deg);
+  background: var(--danger); transform: translate(-50%, -50%) rotate(-45deg);
 }
 .call-avatar-wrap { position: relative; width: 96px; height: 96px; }
 .call-avatar-wrap .call-ring {
