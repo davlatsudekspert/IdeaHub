@@ -1617,7 +1617,7 @@ body { overflow-x: hidden; }
    PRINT
 ════════════════════════════════════ */
 @media print {
-  #topbar, .left-sb, #rsb, #bottom-nav,
+  #topbar, .left-sb, #rsb, #bottom-nav, .utility-bar, .site-footer,
   .sort-bar, .chat-send, .tb-post-btn { display: none !important; }
   body { background: #fff; color: #000; }
 }
