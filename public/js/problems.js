@@ -1,5 +1,5 @@
 'use strict';
-let _feedSort = 'hot', _feedOffset = 0, _feedBusy = false, _feedCategory = null;
+let _murojaatSort = 'hot', _feedOffset = 0, _murojaatBusy = false, _feedCategory = null;
 let _regionsCache = null;
 let _curClusterId = null, _curClusterTab = 'problems';
 
@@ -43,30 +43,30 @@ function buildClusterCard(c) {
 
 /* ═══ LENTA ═══ */
 async function loadClusters(reset=true) {
-  if (_feedBusy && !reset) return;
-  _feedBusy = true;
-  const cnt = document.getElementById('feed-cnt'); if (!cnt) { _feedBusy=false; return; }
+  if (_murojaatBusy && !reset) return;
+  _murojaatBusy = true;
+  const cnt = document.getElementById('feed-cnt'); if (!cnt) { _murojaatBusy=false; return; }
   if (reset) { _feedOffset = 0; cnt.innerHTML = spinner(); }
   try {
-    const rows = await API.clusters(_feedSort, _feedOffset, { category: _feedCategory });
+    const rows = await API.clusters(_murojaatSort, _feedOffset, { category: _feedCategory });
     if (reset) cnt.innerHTML = '';
-    if (!rows.length && reset) { cnt.innerHTML = emptyEl('lightbulb', "Hali murojaat yo'q", "Birinchi murojaatni siz yuboring!"); _feedBusy=false; return; }
+    if (!rows.length && reset) { cnt.innerHTML = emptyEl('lightbulb', "Hali murojaat yo'q", "Birinchi murojaatni siz yuboring!"); _murojaatBusy=false; return; }
     rows.forEach((c,i) => { const d=document.createElement('div'); d.innerHTML=buildClusterCard(c); const el=d.firstElementChild; el.style.animation=`fadeUp .3s ease ${i*.03}s both`; cnt.appendChild(el); });
     _feedOffset += rows.length;
   } catch(e) { if (reset) cnt.innerHTML = emptyEl('close','Xatolik',e.message); }
-  finally { _feedBusy = false; }
+  finally { _murojaatBusy = false; }
 }
-function setFeedSort(sort) {
-  _feedSort = sort;
-  document.querySelectorAll('#sec-home .sort-btn').forEach(b=>b.classList.toggle('active', b.dataset.sort===sort));
+function setMurojaatSort(sort) {
+  _murojaatSort = sort;
+  document.querySelectorAll('#sec-murojaat .sort-btn').forEach(b=>b.classList.toggle('active', b.dataset.sort===sort));
   loadClusters(true);
 }
-function initScrollFeed() {
+function initMurojaatScrollFeed() {
   const obs = new IntersectionObserver(entries => {
-    if (!entries.some(e=>e.isIntersecting) || _feedBusy) return;
-    if (curSec() === 'home') loadClusters(false);
+    if (!entries.some(e=>e.isIntersecting) || _murojaatBusy) return;
+    if (curSec() === 'murojaat') loadClusters(false);
   }, { rootMargin: '200px' });
-  const t = document.getElementById('scroll-trigger'); if (t) obs.observe(t);
+  const t = document.getElementById('murojaat-scroll-trigger'); if (t) obs.observe(t);
 }
 
 /* ═══ KLASTER TAFSILOTI ═══ */
@@ -212,41 +212,41 @@ async function acceptSolutionBtn(id, clusterId) {
   try { await API.acceptSolution(id); toast('Yechim qabul qilindi!'); openCluster(clusterId); } catch(e) { toast(e.message); }
 }
 
-/* ═══ MUROJAAT YOZISH ═══ */
-function openSubmit() {
-  document.getElementById('sub-title').value = '';
-  document.getElementById('sub-body').value = '';
-  document.getElementById('sub-school').value = '';
-  clearSubImg();
-  loadRegionsInto(['sub-region']);
-  if (window._me?.region_id) document.getElementById('sub-region').value = window._me.region_id;
-  document.getElementById('sub-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('sub-title')?.focus(), 150);
+/* ═══ MUROJAAT YOZISH (Postdan alohida — subprob-* id'lari) ═══ */
+function openSubmitProblem() {
+  document.getElementById('subprob-title').value = '';
+  document.getElementById('subprob-body').value = '';
+  document.getElementById('subprob-school').value = '';
+  clearSubProbImg();
+  loadRegionsInto(['subprob-region']);
+  if (window._me?.region_id) document.getElementById('subprob-region').value = window._me.region_id;
+  document.getElementById('subprob-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('subprob-title')?.focus(), 150);
 }
-function closeSubmit() { document.getElementById('sub-overlay').classList.remove('open'); }
-function previewSubImg(inp) {
+function closeSubmitProblem() { document.getElementById('subprob-overlay').classList.remove('open'); }
+function previewSubProbImg(inp) {
   const f = inp.files?.[0]; if (!f) return;
   if (f.size > 10*1024*1024) { toast('Rasm 10MB dan oshmasin'); inp.value=''; return; }
-  const el = document.getElementById('sub-img-preview');
+  const el = document.getElementById('subprob-img-preview');
   el.innerHTML = `<div style="position:relative;margin-top:8px"><div style="max-height:220px;overflow:hidden;border-radius:var(--r);background:var(--bg2)"><img src="${URL.createObjectURL(f)}" style="width:100%;object-fit:contain;max-height:220px"></div>
-    <button onclick="clearSubImg()" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer">✕</button></div>`;
-  document.getElementById('sub-img-drop').style.display = 'none';
+    <button onclick="clearSubProbImg()" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer">✕</button></div>`;
+  document.getElementById('subprob-img-drop').style.display = 'none';
 }
-function clearSubImg() {
-  const fi = document.getElementById('sub-img-file'); if (fi) fi.value = '';
-  const el = document.getElementById('sub-img-preview'); if (el) el.innerHTML = '';
-  const drop = document.getElementById('sub-img-drop'); if (drop) drop.style.display = '';
+function clearSubProbImg() {
+  const fi = document.getElementById('subprob-img-file'); if (fi) fi.value = '';
+  const el = document.getElementById('subprob-img-preview'); if (el) el.innerHTML = '';
+  const drop = document.getElementById('subprob-img-drop'); if (drop) drop.style.display = '';
 }
 async function doSubmitProblem() {
-  const title = (document.getElementById('sub-title').value||'').trim();
-  const body = (document.getElementById('sub-body').value||'').trim();
-  const region_id = document.getElementById('sub-region').value;
-  const school_name = (document.getElementById('sub-school').value||'').trim();
+  const title = (document.getElementById('subprob-title').value||'').trim();
+  const body = (document.getElementById('subprob-body').value||'').trim();
+  const region_id = document.getElementById('subprob-region').value;
+  const school_name = (document.getElementById('subprob-school').value||'').trim();
   if (!title) { toast('Sarlavha kerak'); return; }
-  const btn = document.getElementById('sub-btn');
+  const btn = document.getElementById('subprob-btn');
   btn.disabled = true; btn.innerHTML = '<div class="spin" style="width:14px;height:14px;margin:0;border-width:2px"></div>';
   try {
-    const file = document.getElementById('sub-img-file').files?.[0];
+    const file = document.getElementById('subprob-img-file').files?.[0];
     let problem;
     if (file) {
       const fd = new FormData();
@@ -256,9 +256,9 @@ async function doSubmitProblem() {
     } else {
       problem = await API.createProblem({ title, body, region_id, school_name });
     }
-    closeSubmit();
+    closeSubmitProblem();
     toast("Murojaat yuborildi! AI tahlil qilmoqda... 🤖");
-    if (curSec()==='home') loadClusters(true);
+    if (curSec()==='murojaat') loadClusters(true);
   } catch(e) { toast(e.message||'Xatolik'); }
   finally { btn.disabled = false; btn.innerHTML = 'Yuborish'; }
 }
@@ -289,36 +289,17 @@ function initProblemWS() {
   WS.on('problem_processed', d => {
     const cat = catById(d.data.category_id);
     toast(`🤖 Murojaatingiz tahlil qilindi: ${cat.icon} ${cat.name}`);
-    if (curSec() === 'home') loadClusters(true);
+    if (curSec() === 'murojaat') loadClusters(true);
     if (curSec() === 'mine') loadMyProblems();
   });
 }
-
-/* ═══ SHIKOYAT ═══ */
-let _reportTarget = null, _reportType = null;
-function openReport(targetId, type) {
-  if (!requireAuth()) return;
-  _reportTarget = targetId; _reportType = type;
-  document.getElementById('report-reason-text').value = '';
-  document.getElementById('report-overlay').classList.add('open');
-}
-function closeReport() { document.getElementById('report-overlay').classList.remove('open'); _reportTarget = null; }
-async function submitReport() {
-  const reason = (document.getElementById('report-reason-text').value||'').trim();
-  if (!reason) { toast('Sabab kiriting'); return; }
-  try {
-    const body = { reason };
-    if (_reportType === 'problem') body.problem_id = _reportTarget; else body.comment_id = _reportTarget;
-    await API.report(body);
-    closeReport(); toast('Shikoyat yuborildi. Rahmat!');
-  } catch(e) { toast(e.message); }
-}
+/* Shikoyat (report) uchun umumiy modal core.js'da — bu yerda takror aniqlanmaydi,
+   openReport('id','problem') core.js'dagi bitta unified modalni chaqiradi. */
 
 window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory;
-window.buildClusterCard=buildClusterCard; window.loadClusters=loadClusters; window.setFeedSort=setFeedSort; window.initScrollFeed=initScrollFeed;
+window.buildClusterCard=buildClusterCard; window.loadClusters=loadClusters; window.setMurojaatSort=setMurojaatSort; window.initMurojaatScrollFeed=initMurojaatScrollFeed;
 window.openCluster=openCluster; window.switchClusterTab=switchClusterTab; window.toggleSupport=toggleSupport; window.changeClusterStatus=changeClusterStatus;
 window.submitComment=submitComment; window.promptSolution=promptSolution; window.doGenerateSolutions=doGenerateSolutions;
 window.voteSolutionBtn=voteSolutionBtn; window.acceptSolutionBtn=acceptSolutionBtn;
-window.openSubmit=openSubmit; window.closeSubmit=closeSubmit; window.previewSubImg=previewSubImg; window.clearSubImg=clearSubImg; window.doSubmitProblem=doSubmitProblem;
+window.openSubmitProblem=openSubmitProblem; window.closeSubmitProblem=closeSubmitProblem; window.previewSubProbImg=previewSubProbImg; window.clearSubProbImg=clearSubProbImg; window.doSubmitProblem=doSubmitProblem;
 window.loadMyProblems=loadMyProblems; window.initProblemWS=initProblemWS;
-window.openReport=openReport; window.closeReport=closeReport; window.submitReport=submitReport;

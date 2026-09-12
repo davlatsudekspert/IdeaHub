@@ -10,7 +10,7 @@ async function loadAdmin() {
     const scopeNote = d.scope === 'region' ? `<div style="font-size:12px;color:var(--tx4);margin-bottom:10px">📍 Faqat sizning hududingiz ko'rsatilmoqda</div>` : '';
     el.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div style="font-size:19px;font-weight:800;font-family:'Syne',sans-serif">🛡️ Boshqaruv paneli</div>
+        <div style="font-size:19px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif">🛡️ Boshqaruv paneli</div>
       </div>
       ${scopeNote}
       <div class="stat-grid">

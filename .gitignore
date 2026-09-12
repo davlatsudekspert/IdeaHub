@@ -6,6 +6,7 @@ node_modules/
 # Muhit o'zgaruvchilari va maxfiy kalitlar — hech qachon repoga tushmasin
 .dev.vars
 .dev.vars.*
+!.dev.vars.example
 .env
 .env.*
 !.env.example

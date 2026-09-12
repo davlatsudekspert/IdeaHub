@@ -133,4 +133,29 @@ ${examples}`;
   }
 }
 
+/* ── 4. Post yorliqlash (fon rejimida, jamoalar/post oqimi uchun) ──
+   Murojaat toifalashdan farqli: qattiq enum emas, erkin qisqa mavzu yorlig'i —
+   keyin bir xil yorliqqa ega postlar "o'xshash postlar" sifatida bog'lanadi. */
+const TOPIC_SCHEMA = {
+  type: 'object',
+  properties: { topic: { type: 'string' } },
+  required: ['topic'],
+};
+
+export async function tagPost(env, title, body) {
+  if (!hasGemini(env)) return { topic: null, ai_status: 'pending' };
+  try {
+    const prompt = `Quyidagi forum postining mavzusini 1-3 so'zda, kichik harflar bilan, umumlashtirilgan holda yoz (masalan: "futbol", "dasturlash", "sun'iy intellekt", "konsert"). Faqat JSON bilan javob ber.
+
+Sarlavha: ${title}
+Matn: ${body || '(matn yo\'q)'}`;
+    const r = await callGemini(env, prompt, TOPIC_SCHEMA);
+    const topic = (r.topic || '').trim().toLowerCase().slice(0, 40) || null;
+    return { topic, ai_status: 'done' };
+  } catch (e) {
+    console.error('AI tagPost xatosi:', e.message);
+    return { topic: null, ai_status: 'failed' };
+  }
+}
+
 export { hasGemini };

@@ -1,8 +1,9 @@
 import { makeQ } from './db.js';
-import { uid, now, hashPass, makeToken, verifyToken, getAuth, timeAgo, readBody, readForm, json, randColor, extOf } from './helpers.js';
-import { categorize, matchOrCreateCluster, generateSolutions } from './ai.js';
+import { uid, now, hashPass, makeToken, verifyToken, getAuth, timeAgo, readBody, readForm, json, randColor, extOf, signTemp, verifyTemp } from './helpers.js';
+import { categorize, matchOrCreateCluster, generateSolutions, tagPost } from './ai.js';
 import { sendVerifyCode, hasEmail } from './email.js';
 import { sendTo, isOnline } from './ws.js';
+import { verifyLoginPayload, hasTelegram } from './telegram.js';
 
 export { UserHub } from './durable/UserHub.js';
 
@@ -124,6 +125,66 @@ async function processProblemAI(env, Q, problem) {
   }
 }
 
+/* ═══ ESKI (JAMOALAR/POST) YORDAMCHI FUNKSIYALARI ═══ */
+
+// Postgres'dagi POWER()-asosli "hot" formulaning JS ekvivalenti — D1/SQLite'da
+// POWER() funksiyasi yo'q, shuning uchun so'nggi postlar oldin created_at bo'yicha
+// olib kelinadi (Q.pgRecent), so'ng shu yerda "hot" tartibida saralanadi.
+function hotScore(p) {
+  const ageHours = Math.max((now() - p.created_at) / 3600, 0);
+  return p.score / Math.pow(ageHours + 2, 1.5);
+}
+
+async function fmtPgPost(Q, p, userId) {
+  const myVote = userId ? (await Q.pvGet(userId, p.id))?.vote || 0 : 0;
+  const saved = userId ? !!(await Q.svPCheck(userId, p.id)) : false;
+  let poll = null;
+  const pollRow = await Q.pollGet(p.id);
+  if (pollRow) {
+    const options = JSON.parse(pollRow.options);
+    const counts = await Q.pollVoteCnt(pollRow.id);
+    const total = (await Q.pollTotalVotes(pollRow.id)).c;
+    const myVoteIdx = userId ? (await Q.pollVoteGet(userId, pollRow.id))?.option_index ?? -1 : -1;
+    const countsMap = {};
+    counts.forEach((r) => { countsMap[r.option_index] = r.cnt; });
+    poll = {
+      id: pollRow.id, question: pollRow.question,
+      options: options.map((opt, i) => ({ text: opt, votes: countsMap[i] || 0, pct: total > 0 ? Math.round(((countsMap[i] || 0) / total) * 100) : 0 })),
+      total, my_vote: myVoteIdx, ends_at: pollRow.ends_at, ended: pollRow.ends_at < now(),
+    };
+  }
+  return { ...p, my_vote: myVote, saved, poll, ago: ago(p.created_at) };
+}
+
+async function notifyFollowers(env, Q, posterId, post) {
+  try {
+    const followers = await Q.fwFollowersList(posterId);
+    if (!followers.length) return;
+    const poster = await Q.uById(posterId);
+    if (!poster) return;
+    for (const { follower_id } of followers) {
+      const nid = uid();
+      const msg = `${poster.name} yangi post qo'shdi: ${post.title.slice(0, 50)}`;
+      await Q.nInsertPost(nid, follower_id, posterId, 'new_post', post.id, null, msg);
+      await sendTo(env, follower_id, { type: 'notif', data: { id: nid, type: 'new_post', post_id: post.id, msg, fn: poster.name, fa: poster.avatar, fc: poster.color, is_read: 0, ago: 'Hozir' } });
+    }
+  } catch (e) { console.error('notifyFollowers xatosi:', e.message); }
+}
+
+/* ═══ AI: POSTLARNI FON REJIMIDA YORLIQLASH ═══
+   Murojaatlardan farqli — qattiq toifa emas, erkin qisqa mavzu yorlig'i.
+   Bir xil yorliqqa ega postlar keyin "o'xshash postlar" sifatida bog'lanadi. */
+async function processPostAI(env, Q, post) {
+  try {
+    const r = await tagPost(env, post.title, post.body);
+    await Q.pgSetAiTopic(r.topic, r.ai_status, post.id);
+    if (r.topic) await sendTo(env, post.user_id, { type: 'post_tagged', data: { post_id: post.id, topic: r.topic } });
+  } catch (e) {
+    console.error('processPostAI xatosi:', e.message);
+    try { await Q.pgSetAiTopic(null, 'failed', post.id); } catch {}
+  }
+}
+
 /* ═══ ASOSIY ROUTER ═══ */
 
 async function route(request, env, ctx, p, q, m) {
@@ -204,6 +265,50 @@ async function route(request, env, ctx, p, q, m) {
     return json({ ok: true });
   }
 
+  /* Frontend uchun kichik ochiq konfiguratsiya — statik index.html bot username'ni
+     "bilishi" uchun. Faqat TG_BOT_TOKEN (maxfiy) qo'yilgan bo'lsa qaytariladi —
+     TG_BOT_NAME o'zi bor bo'lishi hali login ishlayotganini bildirmaydi. */
+  if (p === '/api/config' && m === 'GET') {
+    return json({ telegramBotName: hasTelegram(env) ? (env.TG_BOT_NAME || null) : null });
+  }
+
+  /* ══ TELEGRAM LOGIN WIDGET ══
+     Bot bilan gaplashish (webhook/polling) shart emas — vidjet Telegram
+     popup'ida tasdiqlangan foydalanuvchi ma'lumotini to'g'ridan-to'g'ri
+     brauzerga qaytaradi, biz HMAC imzosini tekshiramiz xolos. Yangi
+     foydalanuvchi uchun "profilni to'ldirish" bosqichi server xotirasi
+     o'rniga imzolangan vaqtinchalik token orqali (signTemp/verifyTemp)
+     statesiz amalga oshiriladi. */
+  if (p === '/api/auth/telegram-login' && m === 'POST') {
+    const b = await readBody(request);
+    const { id, first_name, username, photo_url, auth_date, hash } = b;
+    if (!id || !auth_date || !hash) return json({ error: "Ma'lumotlar to'liq emas" }, 400);
+    if (!hasTelegram(env)) return json({ error: 'Telegram bilan kirish sozlanmagan' }, 503);
+    const check = verifyLoginPayload(b, env);
+    if (!check.ok) return json({ error: check.error || "Tekshiruvdan o'tmadi" }, 403);
+    const tgId = String(id);
+    const user = await Q.uByTgId(tgId);
+    if (!user) {
+      const tempToken = signTemp({ tgId, first_name: first_name || '', username: username || '', photo_url: photo_url || '', exp: Date.now() + 300000 }, env.SECRET);
+      return json({ needProfile: true, tempToken });
+    }
+    return json({ token: makeToken(user.id, env.SECRET), user: await Q.uById(user.id) });
+  }
+  if (p === '/api/auth/telegram-finish' && m === 'POST') {
+    const b = await readBody(request);
+    const pending = verifyTemp(b.tempToken || b.token, env.SECRET);
+    const { name, username } = b;
+    if (!pending || !name || !username) return json({ error: "Ma'lumotlar to'liq emas yoki sessiya tugagan" }, 400);
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return json({ error: 'Username: 3-20 belgi, faqat harf/raqam/_' }, 400);
+    if (await Q.uByUsername(username)) return json({ error: 'Bu username band' }, 409);
+    const newId = uid();
+    const email = `tg_${pending.tgId}@mindhub.local`;
+    await Q.uInsert(newId, username.toLowerCase(), name.trim(), email, hashPass(uid() + uid(), env.SECRET), randColor(), null, null);
+    await Q.uSetTgId(pending.tgId, newId);
+    if (pending.photo_url) await Q.uUpdAv(pending.photo_url, newId);
+    return json({ token: makeToken(newId, env.SECRET), user: await Q.uById(newId) });
+  }
+
   /* ══ ME ══ */
   if (p === '/api/me' && m === 'GET') {
     const auth = await requireAuth(request, env); if (auth.error) return auth.error;
@@ -273,7 +378,418 @@ async function route(request, env, ctx, p, q, m) {
     if (!user) return json({ error: 'Topilmadi' }, 404);
     const region = user.region_id ? await Q.regionGet(user.region_id) : null;
     const problems = await Q.pByUser(user.id);
-    return json({ ...user, region_name: region?.name || null, problems, is_me: userId === user.id, online: await isOnline(env, user.id) });
+    const postRows = await Q.pgByUser(user.id);
+    const posts = [];
+    for (const r of postRows) posts.push(await fmtPgPost(Q, r, userId));
+    const followers = (await Q.fwFollowers(user.id)).c;
+    const following = (await Q.fwFollowing(user.id)).c;
+    const is_following = userId ? !!(await Q.fwCheck(userId, user.id)) : false;
+    return json({ ...user, region_name: region?.name || null, problems, posts, followers, following, is_following, is_me: userId === user.id, online: await isOnline(env, user.id) });
+  }
+  if (p.match(/^\/api\/users\/[^/]+\/follow$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const target = await Q.uBySlug(p.split('/')[3]);
+    if (!target || target.id === auth.userId) return json({ error: 'Ruxsat' }, 400);
+    const isFollowing = !!(await Q.fwCheck(auth.userId, target.id));
+    if (isFollowing) {
+      await Q.fwDelete(auth.userId, target.id);
+      await Q.uFollowersSync(target.id);
+      return json({ following: false });
+    }
+    await Q.fwInsert(auth.userId, target.id);
+    await Q.uFollowersSync(target.id);
+    const from = await Q.uById(auth.userId);
+    const nid = uid();
+    const msg = `${from.name} sizni kuzata boshladi`;
+    await Q.nInsertPost(nid, target.id, auth.userId, 'follow', null, null, msg);
+    await sendTo(env, target.id, { type: 'notif', data: { id: nid, type: 'follow', from_id: auth.userId, msg, fn: from.name, fa: from.avatar, fc: from.color, is_read: 0, ago: 'Hozir' } });
+    return json({ following: true });
+  }
+
+  /* ══ COMMUNITIES (jamoalar) ══ */
+  if (p === '/api/communities/popular' && m === 'GET') {
+    const userId = getAuth(request, env.SECRET);
+    const coms = await Q.comByViews();
+    const out = [];
+    for (const c of coms) {
+      const role = userId ? await Q.comRoleGet(userId, c.id) : null;
+      out.push({ ...c, is_member: userId ? !!(await Q.memCheck(userId, c.id)) : false, is_owner: userId === c.owner_id, is_admin: !!(role && role.role === 'admin'), pending_request: userId ? !!(await Q.comReqGet(userId, c.id)) : false });
+    }
+    return json(out);
+  }
+  if (p === '/api/communities/my-requests' && m === 'GET') {
+    const auth = await requireAuth(request, env); if (auth.error) return auth.error;
+    return json(await Q.comReqAll(auth.userId));
+  }
+  if (p === '/api/communities' && m === 'GET') {
+    const userId = getAuth(request, env.SECRET);
+    const sq = q.get('q') ? q.get('q').toLowerCase() : null;
+    let coms;
+    if (sq) coms = await Q.comSearch('%' + sq + '%', '%' + sq + '%');
+    else if (q.get('mine') && userId) coms = await Q.comMine(userId);
+    else coms = await Q.comAll();
+    const out = [];
+    for (const c of coms) {
+      const isMember = userId ? !!(await Q.memCheck(userId, c.id)) : false;
+      if (c.is_private && !isMember && userId !== c.owner_id) continue;
+      const role = userId ? await Q.comRoleGet(userId, c.id) : null;
+      out.push({ ...c, is_member: isMember, is_owner: userId === c.owner_id, is_admin: !!(role && role.role === 'admin'), pending_request: userId ? !!(await Q.comReqGet(userId, c.id)) : false });
+    }
+    return json(out);
+  }
+  if (p.match(/^\/api\/communities\/[^/]+$/) && m === 'GET') {
+    const userId = getAuth(request, env.SECRET);
+    const slug = p.split('/')[3];
+    const com = await Q.comBySlug(slug);
+    if (!com) return json({ error: 'Topilmadi' }, 404);
+    const isMember = userId ? !!(await Q.memCheck(userId, com.id)) : false;
+    if (com.is_private && !isMember && userId !== com.owner_id) return json({ error: 'Maxfiy jamoa' }, 403);
+    await Q.comIncViews(com.id);
+    const role = userId ? await Q.comRoleGet(userId, com.id) : null;
+    const admins = await Q.comRoleList(com.id);
+    const isComAdmin = userId && (userId === com.owner_id || (role && role.role === 'admin'));
+    const pendingReqs = isComAdmin ? await Q.comReqByCom(com.id) : [];
+    return json({ ...com, views: (com.views || 0) + 1, is_member: isMember, is_owner: userId === com.owner_id, is_admin: !!(role && role.role === 'admin'), pending_request: userId ? !!(await Q.comReqGet(userId, com.id)) : false, admins, pending_requests: pendingReqs });
+  }
+  if (p === '/api/communities' && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const b = await readBody(request);
+    const slug = (b.slug || '').toLowerCase().trim().replace(/\s+/g, '-');
+    const name = (b.name || '').trim();
+    if (!slug || !/^[a-z0-9_-]{2,32}$/.test(slug)) return json({ error: "Slug: 2-32 belgi, faqat kichik harf/raqam/_/-" }, 400);
+    if (!name) return json({ error: 'Nom kiriting' }, 400);
+    if (await Q.comBySlug(slug)) return json({ error: 'Bu slug band' }, 409);
+    const cid = uid();
+    await Q.comInsert(cid, slug, name, (b.description || '').trim(), b.color || '#C8922A', auth.userId, b.is_private ? 1 : 0);
+    await Q.memJoin(auth.userId, cid);
+    await Q.comIncMem(cid);
+    return json(await Q.comById(cid), 201);
+  }
+  if (p.match(/^\/api\/communities\/[^/]+$/) && m === 'PUT') {
+    const auth = await requireAuth(request, env); if (auth.error) return auth.error;
+    const slug = p.split('/')[3];
+    const com = await Q.comBySlug(slug); if (!com) return json({ error: 'Topilmadi' }, 404);
+    const user = await Q.uByIdFull(auth.userId);
+    const role = await Q.comRoleGet(auth.userId, com.id);
+    if (com.owner_id !== auth.userId && user.role !== 'admin' && !(role && role.role === 'admin')) return json({ error: "Ruxsat yo'q" }, 403);
+    const ct = request.headers.get('content-type') || '';
+    let name = com.name, desc = com.description, rules = com.rules, color = com.color, avatar = com.avatar, banner = com.banner, is_private = com.is_private;
+    if (ct.includes('multipart')) {
+      const { fields, files } = await readForm(request);
+      name = (fields.name || com.name).trim(); desc = (fields.description || com.description || '').trim();
+      rules = (fields.rules || com.rules || '').trim(); color = fields.color || com.color;
+      if (fields.is_private !== undefined) is_private = fields.is_private === 'true' || fields.is_private === '1' ? 1 : 0;
+      if (files.avatar?.size) { const saved = await saveFileR2(env, files.avatar, IMG_EXT, 5 * 1024 * 1024); if (saved?.url) avatar = saved.url; }
+      if (files.banner?.size) { const saved = await saveFileR2(env, files.banner, IMG_EXT, 5 * 1024 * 1024); if (saved?.url) banner = saved.url; }
+    } else {
+      const b = await readBody(request);
+      name = (b.name || com.name).trim(); desc = (b.description || com.description || '').trim();
+      rules = (b.rules || com.rules || '').trim(); color = b.color || com.color;
+      if (b.is_private !== undefined) is_private = b.is_private ? 1 : 0;
+    }
+    await Q.comUpdateFull(name, desc, rules, color, avatar || null, banner || null, com.id);
+    if (is_private !== com.is_private) await Q.comSetPrivate(is_private, com.id);
+    return json(await Q.comBySlug(slug));
+  }
+  if (p.match(/^\/api\/communities\/[^/]+$/) && m === 'DELETE') {
+    const auth = await requireAuth(request, env); if (auth.error) return auth.error;
+    const slug = p.split('/')[3];
+    const com = await Q.comBySlug(slug); if (!com) return json({ error: 'Topilmadi' }, 404);
+    const user = await Q.uByIdFull(auth.userId);
+    const role = await Q.comRoleGet(auth.userId, com.id);
+    if (com.owner_id !== auth.userId && user.role !== 'admin' && !(role && role.role === 'admin')) return json({ error: "Ruxsat yo'q" }, 403);
+    await Q.comDelete(com.id);
+    return json({ ok: true });
+  }
+  if (p.match(/^\/api\/communities\/[^/]+\/join$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const slug = p.split('/')[3];
+    const com = await Q.comBySlug(slug); if (!com) return json({ error: 'Topilmadi' }, 404);
+    const isMem = !!(await Q.memCheck(auth.userId, com.id));
+    if (isMem) { await Q.memLeave(auth.userId, com.id); await Q.comDecMem(com.id); return json({ joined: false }); }
+    if (com.is_private) {
+      if (await Q.comReqGet(auth.userId, com.id)) return json({ error: "So'rov allaqachon yuborilgan", pending: true });
+      await Q.comReqInsert(uid(), auth.userId, com.id);
+      return json({ pending: true, message: "So'rov yuborildi, admin tasdiqlashi kerak" });
+    }
+    await Q.memJoin(auth.userId, com.id); await Q.comIncMem(com.id);
+    return json({ joined: true });
+  }
+  if (p.match(/^\/api\/communities\/[^/]+\/admin$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const com = await Q.comBySlug(p.split('/')[3]); if (!com) return json({ error: 'Topilmadi' }, 404);
+    if (com.owner_id !== auth.userId) return json({ error: 'Faqat egasi admin tayinlay oladi' }, 403);
+    const b = await readBody(request);
+    if (!b.user_id) return json({ error: 'user_id kerak' }, 400);
+    await Q.comRoleSet(b.user_id, com.id, 'admin');
+    return json({ ok: true });
+  }
+  if (p.match(/^\/api\/communities\/[^/]+\/admin$/) && m === 'DELETE') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const com = await Q.comBySlug(p.split('/')[3]); if (!com) return json({ error: 'Topilmadi' }, 404);
+    if (com.owner_id !== auth.userId) return json({ error: 'Faqat egasi admin olib tashlay oladi' }, 403);
+    const b = await readBody(request);
+    if (!b.user_id) return json({ error: 'user_id kerak' }, 400);
+    await Q.comRoleDel(b.user_id, com.id);
+    return json({ ok: true });
+  }
+  if (p.match(/^\/api\/communities\/[^/]+\/request\/[^/]+$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const slug = p.split('/')[3]; const reqId = p.split('/')[5];
+    const com = await Q.comBySlug(slug); if (!com) return json({ error: 'Topilmadi' }, 404);
+    const role = await Q.comRoleGet(auth.userId, com.id);
+    if (com.owner_id !== auth.userId && !(role && role.role === 'admin')) return json({ error: "Ruxsat yo'q" }, 403);
+    const b = await readBody(request);
+    if (b.action === 'approve') {
+      await Q.comReqApprove(reqId);
+      const request2 = await Q.comReqGetById(reqId);
+      if (request2) { await Q.memJoin(request2.user_id, com.id); await Q.comIncMem(com.id); }
+    } else {
+      await Q.comReqReject(reqId);
+    }
+    return json({ ok: true });
+  }
+  if (p.match(/^\/api\/communities\/[^/]+\/posts$/) && m === 'GET') {
+    const userId = getAuth(request, env.SECRET);
+    const slug = p.split('/')[3];
+    const sort = q.get('sort') || 'hot';
+    const offset = parseInt(q.get('offset')) || 0;
+    const com = await Q.comBySlug(slug);
+    if (com && com.is_private) {
+      const isMember = userId ? !!(await Q.memCheck(userId, com.id)) : false;
+      if (!isMember && userId !== com.owner_id) return json({ error: "Maxfiy jamoa, a'zo bo'ling" }, 403);
+    }
+    if (!com) return json({ error: 'Topilmadi' }, 404);
+    let rows;
+    if (sort === 'hot') {
+      rows = (await Q.pgByCommunityRecent(com.id, 200)).map((r) => ({ ...r, _hot: hotScore(r) })).sort((a, b2) => b2._hot - a._hot).slice(offset, offset + 25);
+    } else {
+      rows = await Q.pgByCommunity(com.id, sort, offset, 25);
+    }
+    const out = [];
+    for (const r of rows) out.push(await fmtPgPost(Q, r, userId));
+    return json(out);
+  }
+
+  /* ══ POSTS (eski, jamoalar ichidagi) ══ */
+  if (p === '/api/posts' && m === 'GET') {
+    const userId = getAuth(request, env.SECRET);
+    const sort = q.get('sort') || 'hot';
+    const offset = parseInt(q.get('offset')) || 0;
+    let rows;
+    if (sort === 'new') rows = await Q.pgNew(offset, 25);
+    else if (sort === 'top') rows = await Q.pgTop(offset, 25);
+    else rows = (await Q.pgRecent(200)).map((r) => ({ ...r, _hot: hotScore(r) })).sort((a, b) => b._hot - a._hot).slice(offset, offset + 25);
+    const out = [];
+    for (const r of rows) {
+      if (r.community_id) {
+        const com = await Q.comById(r.community_id);
+        if (com?.is_private) {
+          const isMember = userId ? !!(await Q.memCheck(userId, r.community_id)) : false;
+          if (!isMember) continue;
+        }
+      }
+      out.push(await fmtPgPost(Q, r, userId));
+    }
+    return json(out);
+  }
+  if (p === '/api/posts/saved' && m === 'GET') {
+    const auth = await requireAuth(request, env); if (auth.error) return auth.error;
+    const out = [];
+    for (const r of await Q.pgSaved(auth.userId)) out.push(await fmtPgPost(Q, r, auth.userId));
+    return json(out);
+  }
+  if (p.match(/^\/api\/posts\/[^/]+$/) && m === 'GET') {
+    const userId = getAuth(request, env.SECRET);
+    const post = await Q.pgOne(p.split('/')[3]);
+    if (!post) return json({ error: 'Topilmadi' }, 404);
+    const com = await Q.comById(post.community_id);
+    if (com?.is_private) {
+      const isMember = userId ? !!(await Q.memCheck(userId, post.community_id)) : false;
+      if (!isMember && userId !== com.owner_id) return json({ error: 'Maxfiy jamoa posti' }, 403);
+    }
+    const cm = await Q.pcByPost(post.id);
+    const comments = [];
+    for (const c of cm) comments.push({ ...c, my_vote: userId ? (await Q.pcvGet(userId, c.id))?.vote || 0 : 0, ago: ago(c.created_at) });
+    return json({ ...(await fmtPgPost(Q, post, userId)), comments });
+  }
+  if (p === '/api/posts' && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const ct = request.headers.get('content-type') || '';
+    let title = '', body = '', comSlug = '', type = 'text', link = null, image = null, video = null, audio = null, flair = null;
+    let pollQuestion = null, pollOptions = null, pollDays = 3;
+    if (ct.includes('multipart')) {
+      const { fields, files } = await readForm(request);
+      title = (fields.title || '').trim(); body = (fields.body || '').trim();
+      comSlug = (fields.community || '').trim(); type = fields.type || 'text';
+      link = fields.link || null; flair = fields.flair || null;
+      pollQuestion = fields.poll_question || null;
+      pollOptions = fields.poll_options ? JSON.parse(fields.poll_options) : null;
+      pollDays = parseInt(fields.poll_days) || 3;
+      if (files.image?.size) {
+        const saved = await saveFileR2(env, files.image, [...IMG_EXT, '.heic', '.heif'], 10 * 1024 * 1024);
+        if (saved?.tooLarge) return json({ error: 'Rasm 10MB dan oshmasin' }, 413);
+        if (!saved?.url) return json({ error: "Rasm formati qo'llab-quvvatlanmaydi" }, 400);
+        image = saved.url; type = 'image';
+      }
+      if (files.video?.size) {
+        const saved = await saveFileR2(env, files.video, ['.mp4', '.webm', '.mov', '.avi', '.mkv'], 500 * 1024 * 1024);
+        if (saved?.tooLarge) return json({ error: 'Video 500MB dan oshmasin' }, 413);
+        if (!saved?.url) return json({ error: "Video formati qo'llab-quvvatlanmaydi" }, 400);
+        video = saved.url; type = 'video';
+      }
+      if (files.audio?.size) {
+        const saved = await saveFileR2(env, files.audio, [...AUDIO_EXT, '.mp3'], 20 * 1024 * 1024);
+        if (saved?.tooLarge) return json({ error: 'Audio 20MB dan oshmasin' }, 413);
+        if (!saved?.url) return json({ error: "Audio formati qo'llab-quvvatlanmaydi" }, 400);
+        audio = saved.url; type = 'audio';
+      }
+    } else {
+      const b = await readBody(request);
+      title = (b.title || '').trim(); body = (b.body || '').trim();
+      comSlug = (b.community || '').trim(); type = b.type || 'text';
+      link = b.link || null; flair = b.flair || null;
+      pollQuestion = b.poll_question || null; pollOptions = b.poll_options || null; pollDays = parseInt(b.poll_days) || 3;
+    }
+    if (!title) return json({ error: 'Sarlavha kerak' }, 400);
+    if (title.length > 300) return json({ error: '300 belgidan oshmasin' }, 400);
+    if (body.length > 20000) return json({ error: '20000 belgidan oshmasin' }, 400);
+    if (!comSlug) return json({ error: 'Jamoa tanlang' }, 400);
+    const com = await Q.comBySlug(comSlug);
+    if (!com) return json({ error: 'Jamoa topilmadi' }, 404);
+    const pid = uid();
+    await Q.pgInsert(pid, auth.userId, com.id, title, body, link, image, video, audio, type, flair);
+    await Q.pgScore(1, 1, 0, pid);
+    await Q.pvUpsert(auth.userId, pid, 1);
+    await Q.uKarma(1, auth.userId);
+    if (pollQuestion && Array.isArray(pollOptions) && pollOptions.length >= 2) {
+      const polid = uid();
+      await Q.pollInsert(polid, pid, pollQuestion.trim(), JSON.stringify(pollOptions.slice(0, 10).map((o) => String(o).trim())), pollDays, now() + pollDays * 86400);
+    }
+    const post = await Q.pgOne(pid);
+    ctx.waitUntil(processPostAI(env, Q, post));
+    ctx.waitUntil(notifyFollowers(env, Q, auth.userId, post));
+    return json(await fmtPgPost(Q, post, auth.userId), 201);
+  }
+  if (p.match(/^\/api\/posts\/[^/]+$/) && m === 'DELETE') {
+    const auth = await requireAuth(request, env); if (auth.error) return auth.error;
+    const pid = p.split('/')[3];
+    const own = await Q.pgOwner(pid); if (!own) return json({ error: 'Topilmadi' }, 404);
+    const user = await Q.uByIdFull(auth.userId);
+    if (own.user_id !== auth.userId && user.role !== 'admin') return json({ error: "Ruxsat yo'q" }, 403);
+    await Q.pgDelete(pid);
+    return json({ ok: true });
+  }
+  if (p.match(/^\/api\/posts\/[^/]+\/vote$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const pid = p.split('/')[3];
+    const own = await Q.pgOwner(pid); if (!own) return json({ error: 'Topilmadi' }, 404);
+    const b = await readBody(request);
+    const vote = parseInt(b.vote);
+    if (![1, -1].includes(vote)) return json({ error: 'Vote 1 yoki -1' }, 400);
+    const ex = await Q.pvGet(auth.userId, pid);
+    const prev = ex ? ex.vote : 0;
+    let myVote = vote;
+    if (prev === vote) { await Q.pvDelete(auth.userId, pid); myVote = 0; } else await Q.pvUpsert(auth.userId, pid, vote);
+    const c = await Q.pvCount(pid);
+    const score = c.up - c.dn;
+    await Q.pgScore(score, c.up, c.dn, pid);
+    if (own.user_id !== auth.userId) {
+      const delta = (myVote === 1 ? 1 : 0) - (prev === 1 ? 1 : 0);
+      if (delta) await Q.uKarma(delta, own.user_id);
+    }
+    return json({ score, my_vote: myVote, upvotes: c.up, downvotes: c.dn });
+  }
+  if (p.match(/^\/api\/posts\/[^/]+\/save$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const pid = p.split('/')[3];
+    const saved = !!(await Q.svPCheck(auth.userId, pid));
+    if (saved) { await Q.svPDelete(auth.userId, pid); return json({ saved: false }); }
+    await Q.svPInsert(auth.userId, pid);
+    return json({ saved: true });
+  }
+
+  /* ══ SO'ROVNOMA (poll) OVOZ ══ */
+  if (p.match(/^\/api\/polls\/[^/]+\/vote$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const pollId = p.split('/')[3];
+    const b = await readBody(request);
+    const optIdx = parseInt(b.option);
+    const poll = await Q.pollGetById(pollId);
+    if (!poll) return json({ error: "So'rovnoma topilmadi" }, 404);
+    if (poll.ends_at < now()) return json({ error: "So'rovnoma tugagan" }, 400);
+    const opts = JSON.parse(poll.options);
+    if (optIdx < 0 || optIdx >= opts.length) return json({ error: "Noto'g'ri variant" }, 400);
+    if (await Q.pollVoteGet(auth.userId, pollId)) return json({ error: 'Allaqachon ovoz berdingiz' }, 400);
+    await Q.pollVoteIns(auth.userId, pollId, optIdx);
+    const counts = await Q.pollVoteCnt(pollId);
+    const total = (await Q.pollTotalVotes(pollId)).c;
+    const countsMap = {}; counts.forEach((r) => { countsMap[r.option_index] = r.cnt; });
+    return json({ options: opts.map((opt, i) => ({ text: opt, votes: countsMap[i] || 0, pct: total > 0 ? Math.round(((countsMap[i] || 0) / total) * 100) : 0 })), total, my_vote: optIdx });
+  }
+
+  /* ══ POST IZOHLARI (threaded) ══ */
+  if (p.match(/^\/api\/posts\/[^/]+\/comments$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const pid = p.split('/')[3];
+    const post = await Q.pgOne(pid); if (!post) return json({ error: 'Topilmadi' }, 404);
+    const b = await readBody(request);
+    const cbody = (b.body || '').trim();
+    if (!cbody) return json({ error: "Izoh bo'sh bo'lmasin" }, 400);
+    if (cbody.length > 5000) return json({ error: '5000 belgidan oshmasin' }, 400);
+    const parentId = b.parent_id || null;
+    const depth = parentId ? ((await Q.pcDepth(parentId))?.depth || 0) + 1 : 0;
+    const cid = uid();
+    await Q.pcInsert(cid, pid, auth.userId, parentId, cbody, depth);
+    await Q.pgIncCmt(pid);
+    await Q.uKarma(1, auth.userId);
+    const comment = { ...(await Q.pcOne(cid)), my_vote: 0, ago: ago(now()) };
+    const from = await Q.uById(auth.userId);
+    if (post.user_id !== auth.userId) {
+      const nid = uid();
+      const msg = `${from.name} postingizga izoh qoldirdi`;
+      await Q.nInsertPost(nid, post.user_id, auth.userId, 'post_comment', pid, cid, msg);
+      await sendTo(env, post.user_id, { type: 'notif', data: { id: nid, type: 'post_comment', post_id: pid, msg, fn: from.name, fa: from.avatar, fc: from.color, is_read: 0, ago: 'Hozir' } });
+    }
+    if (parentId) {
+      const parentOwner = await Q.pcOwner(parentId);
+      if (parentOwner && parentOwner.user_id !== auth.userId && parentOwner.user_id !== post.user_id) {
+        const nid = uid();
+        const msg = `${from.name} izohingizga javob qoldirdi`;
+        await Q.nInsertPost(nid, parentOwner.user_id, auth.userId, 'post_reply', pid, cid, msg);
+        await sendTo(env, parentOwner.user_id, { type: 'notif', data: { id: nid, type: 'post_reply', post_id: pid, msg, fn: from.name, fa: from.avatar, fc: from.color, is_read: 0, ago: 'Hozir' } });
+      }
+    }
+    return json(comment, 201);
+  }
+  if (p.match(/^\/api\/post-comments\/[^/]+\/vote$/) && m === 'POST') {
+    const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
+    const cid = p.split('/')[3];
+    const b = await readBody(request);
+    const vote = parseInt(b.vote);
+    if (![1, -1].includes(vote)) return json({ error: 'Vote 1 yoki -1' }, 400);
+    const own = await Q.pcOwner(cid); if (!own) return json({ error: 'Topilmadi' }, 404);
+    const ex = await Q.pcvGet(auth.userId, cid);
+    let myVote = vote;
+    if (ex && ex.vote === vote) { await Q.pcvDelete(auth.userId, cid); myVote = 0; } else await Q.pcvUpsert(auth.userId, cid, vote);
+    const c = await Q.pcvCount(cid);
+    const score = c.up - c.dn;
+    await Q.pcScore(score, cid);
+    return json({ score, my_vote: myVote });
+  }
+  if (p.match(/^\/api\/post-comments\/[^/]+$/) && m === 'DELETE') {
+    const auth = await requireAuth(request, env); if (auth.error) return auth.error;
+    const cid = p.split('/')[3];
+    const own = await Q.pcOwner(cid); if (!own) return json({ error: 'Topilmadi' }, 404);
+    const user = await Q.uByIdFull(auth.userId);
+    if (own.user_id !== auth.userId && user.role !== 'admin') return json({ error: "Ruxsat yo'q" }, 403);
+    const kids = await Q.pcChildren(cid);
+    const ids = [cid, ...kids.map((k) => k.id)];
+    await Q.pcvDeleteMany(ids);
+    await Q.pcDeleteMany(ids);
+    await Q.pgDecCmt(ids.length, own.post_id);
+    await Q.uKarma(-1, own.user_id);
+    return json({ ok: true });
   }
 
   /* ══ PROBLEMS (murojaatlar) ══ */
@@ -567,11 +1083,17 @@ async function route(request, env, ctx, p, q, m) {
   /* ══ SEARCH ══ */
   if (p === '/api/search' && m === 'GET') {
     const sq = (q.get('q') || '').toLowerCase();
-    if (sq.length < 2) return json({ problems: [], users: [] });
+    if (sq.length < 2) return json({ problems: [], users: [], posts: [], communities: [] });
+    const userId = getAuth(request, env.SECRET);
     const type = q.get('type') || 'all';
-    const out = { problems: [], users: [] };
+    const out = { problems: [], users: [], posts: [], communities: [] };
     if (type === 'all' || type === 'problems') out.problems = (await Q.pSearch('%' + sq + '%', '%' + sq + '%')).map(x => ({ ...x, ago: ago(x.created_at) }));
     if (type === 'all' || type === 'users') out.users = await Q.uSearch('%' + sq + '%', '%' + sq + '%');
+    if (type === 'all' || type === 'posts') {
+      const rows = await Q.pgSearch('%' + sq + '%', '%' + sq + '%');
+      for (const r of rows) out.posts.push(await fmtPgPost(Q, r, userId));
+    }
+    if (type === 'all' || type === 'communities') out.communities = await Q.comSearch('%' + sq + '%', '%' + sq + '%');
     return json(out);
   }
 
@@ -580,7 +1102,8 @@ async function route(request, env, ctx, p, q, m) {
     const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
     const b = await readBody(request);
     if (!b.reason?.trim()) return json({ error: 'Sabab kerak' }, 400);
-    await Q.rpInsert(uid(), auth.userId, b.problem_id || null, b.comment_id || null, b.reason.trim());
+    if (b.post_id || b.post_comment_id) await Q.rpInsertPost(uid(), auth.userId, b.post_id || null, b.post_comment_id || null, b.reason.trim());
+    else await Q.rpInsert(uid(), auth.userId, b.problem_id || null, b.comment_id || null, b.reason.trim());
     return json({ ok: true });
   }
 
@@ -717,6 +1240,11 @@ export default {
       for (const problem of pending) {
         try { await processProblemAI(env, Q, problem); }
         catch (e) { console.error('scheduled AI xatosi:', e.message); }
+      }
+      const pendingPosts = await Q.pgPendingAi(10);
+      for (const post of pendingPosts) {
+        try { await processPostAI(env, Q, post); }
+        catch (e) { console.error('scheduled post AI xatosi:', e.message); }
       }
     })());
   },

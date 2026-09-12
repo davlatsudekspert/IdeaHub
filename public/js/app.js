@@ -51,6 +51,57 @@ async function doSendCode(){
   }catch(e){toast(e.message);}
   finally{btn.disabled=false;btn.textContent='Kod yuborish';}
 }
+/* ═══ TELEGRAM BILAN KIRISH (Login Widget) ═══
+   #tg-login-wrap sukut bo'yicha hidden — bot username sozlanmaguncha shu holicha qoladi.
+   Bot ulanganda tegishli joyga telegram-widget.js <script> qo'shilib, hidden olib tashlansa yetarli. */
+async function onTelegramAuth(user){
+  try{
+    const d = await api('POST','/auth/telegram-login', user);
+    if (d.needProfile) {
+      window._tgTemp = d.tempToken;
+      document.getElementById('am-tg-name').value = user.first_name || '';
+      document.getElementById('am-tg-user').value = '';
+      document.getElementById('am-login-form').style.display = 'none';
+      document.getElementById('am-reg-form').style.display = 'none';
+      document.getElementById('am-forgot-form').style.display = 'none';
+      document.getElementById('am-tg-profile-form').style.display = 'block';
+      return;
+    }
+    tokSave(d.token); Tok.set(d.token); closeAuthModal(); await boot(d.user);
+  } catch(e){ toast(e.message || 'Telegram orqali kirishda xatolik'); }
+}
+async function initTelegramWidget(){
+  try {
+    const cfg = await API.config();
+    if (!cfg.telegramBotName) return;
+    const container = document.getElementById('tg-login-container');
+    const wrap = document.getElementById('tg-login-wrap');
+    if (!container || !wrap || container.childElementCount) return;
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://telegram.org/js/telegram-widget.js?22';
+    s.setAttribute('data-telegram-login', cfg.telegramBotName);
+    s.setAttribute('data-size', 'large');
+    s.setAttribute('data-radius', '10');
+    s.setAttribute('data-onauth', 'onTelegramAuth(user)');
+    s.setAttribute('data-request-access', 'write');
+    container.appendChild(s);
+    wrap.hidden = false;
+  } catch {}
+}
+async function finishTgReg(){
+  const name=(document.getElementById('am-tg-name').value||'').trim();
+  const username=(document.getElementById('am-tg-user').value||'').trim();
+  const err=document.getElementById('am-tg-err'); err.classList.remove('on');
+  if(!name||!username){ err.textContent="Ism va username kiriting"; err.classList.add('on'); return; }
+  const btn=document.getElementById('am-tg-btn'); btn.disabled=true; btn.textContent='...';
+  try{
+    const d = await api('POST','/auth/telegram-finish', { tempToken: window._tgTemp, name, username });
+    tokSave(d.token); Tok.set(d.token); closeAuthModal(); await boot(d.user);
+  } catch(e){ err.textContent=e.message; err.classList.add('on'); }
+  finally{ btn.disabled=false; btn.textContent='Davom etish'; }
+}
+
 async function doVerifyAndReset(){
   const code=(document.getElementById('fg-code').value||'').trim();
   const newPass=(document.getElementById('fg-new-pass').value||'').trim();
@@ -84,8 +135,9 @@ async function boot(initialUser){
   WS.connect(Tok.get());
   initProblemWS(); initMsgWS(); initCallWS();
   loadCategoryFilters();
-  await Promise.allSettled([loadClusters(true), loadNotifCount(), loadConvos()]);
+  await Promise.allSettled([loadFeed(true), loadNotifCount(), loadConvos()]);
   initScrollFeed();
+  initMurojaatScrollFeed();
   await initPushPermissionPrompt();
   const urlParams = new URLSearchParams(location.search);
   const clusterId = urlParams.get('cluster');
@@ -233,6 +285,19 @@ async function markNotifs(){ try{ await API.markNotifs(); _nUnread=0; updNotifDo
 
 /* ═══ QIDIRUV ═══ */
 const debouncedSearch = debounce(q => { if(q.length>1) doSearch(q); }, 400);
+function onTopSearch(e){
+  const q = (e.target.value||'').trim();
+  if (q.length > 1) {
+    if (curSec() !== 'search') goSec('search');
+    debouncedSearch(q);
+  } else {
+    const el = document.getElementById('search-res'); if (el) el.innerHTML = '';
+  }
+}
+function openMobileSearch(){
+  const mb = document.getElementById('mobile-search-bar');
+  if (mb) { mb.classList.add('open'); setTimeout(()=>document.getElementById('mobile-search-inp')?.focus(), 150); }
+}
 async function doSearch(q){
   const el=document.getElementById('search-res'); if(!el) return;
   el.innerHTML=spinner();
@@ -247,6 +312,18 @@ async function doSearch(q){
 }
 function setBnActive(id){ document.querySelectorAll('.bn-item[id]').forEach(b=>b.classList.toggle('active',b.id===id)); }
 
+/* ═══ SAQLANGAN POSTLAR ═══ */
+async function loadSavedPosts(){
+  const el=document.getElementById('saved-cnt'); if(!el) return;
+  el.innerHTML=spinner();
+  try{
+    const posts=await API.savedPosts();
+    if(!posts.length){ el.innerHTML=emptyEl('save',"Hali saqlangan post yo'q"); return; }
+    el.innerHTML='';
+    posts.forEach((p,i)=>{ const d=document.createElement('div'); d.innerHTML=buildPost(p); const c=d.firstElementChild; c.style.animationDelay=(i*.04)+'s'; el.appendChild(c); });
+  }catch(e){ el.innerHTML=emptyEl('close','Xatolik',e.message); }
+}
+
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('search-res') && (document.getElementById('search-res').innerHTML = `
@@ -258,15 +335,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (tok) {
     Tok.set(tok);
     try { const user = await API.me(); await boot(user); }
-    catch { tokClear(); document.getElementById('auth').style.display='flex'; }
+    catch { tokClear(); document.getElementById('auth').style.display='flex'; initTelegramWidget(); }
   } else {
     document.getElementById('auth').style.display = 'flex';
+    initTelegramWidget();
   }
 });
 
 window.showAuthModal=showAuthModal; window.closeAuthModal=closeAuthModal; window.switchAmTab=switchAmTab; window.requireAuth=requireAuth;
 window.doAmLogin=doAmLogin; window.doAmReg=doAmReg; window.doSendCode=doSendCode; window.doVerifyAndReset=doVerifyAndReset;
+window.onTelegramAuth=onTelegramAuth; window.finishTgReg=finishTgReg; window.initTelegramWidget=initTelegramWidget;
 window.syncTopbar=syncTopbar; window.boot=boot; window.toggleTheme=toggleTheme; window.doLogout=doLogout;
 window.openUser=openUser; window.uploadAvatar=uploadAvatar; window.loadSettings=loadSettings; window.saveProfile=saveProfile; window.doChpass=doChpass;
 window.loadNotifCount=loadNotifCount; window.loadNotifs=loadNotifs; window.markNotifs=markNotifs;
-window.doSearch=doSearch; window.debouncedSearch=debouncedSearch; window.setBnActive=setBnActive; window.showBanBanner=showBanBanner;
+window.doSearch=doSearch; window.debouncedSearch=debouncedSearch; window.onTopSearch=onTopSearch; window.openMobileSearch=openMobileSearch;
+window.setBnActive=setBnActive; window.showBanBanner=showBanBanner; window.loadSavedPosts=loadSavedPosts;

@@ -45,7 +45,7 @@ async function openChat(user) {
     <button class="msg-back-btn" onclick="closeChatMobile()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg></button>
     <div class="av" style="${avStyle(user,40)};border-radius:50%;flex-shrink:0;cursor:pointer" onclick="openUser('${escJs(user.username)}')">${avHtml(user,40,14)}</div>
     <div style="flex:1;min-width:0;cursor:pointer" onclick="openUser('${escJs(user.username)}')">
-      <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(user.name||user.username)}</div>
+      <div style="font-size:14px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(user.name||user.username)}</div>
       <div style="font-size:11px;color:var(--tx4);display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:${user.online?'var(--grn)':'var(--tx4)'}"></span>${user.online?'Onlayn':'Oflayn'}</div>
     </div>
     <div style="display:flex;gap:6px">

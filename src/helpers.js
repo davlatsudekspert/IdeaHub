@@ -31,6 +31,29 @@ export function verifyToken(tok, secret) {
   } catch { return null; }
 }
 
+// Umumiy: istalgan qisqa muddatli obyektni imzolab beradi (masalan Telegram
+// login'dagi "profilni to'ldiring" bosqichi uchun vaqtinchalik holat) — server
+// xotirasida saqlash shart emas, chunki Workers so'rovlar orasida holatni
+// kafolatlab saqlamaydi.
+export function signTemp(payload, secret) {
+  const pl = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sg = crypto.createHmac('sha256', secret).update(pl).digest('base64url');
+  return `${pl}.${sg}`;
+}
+
+export function verifyTemp(tok, secret) {
+  if (!tok) return null;
+  try {
+    const [pl, sg] = tok.split('.');
+    if (!pl || !sg) return null;
+    const expected = crypto.createHmac('sha256', secret).update(pl).digest('base64url');
+    const a = Buffer.from(expected), b = Buffer.from(sg);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const d = JSON.parse(Buffer.from(pl, 'base64url').toString());
+    return Date.now() > d.exp ? null : d;
+  } catch { return null; }
+}
+
 export function getAuth(req, secret) {
   const h = req.headers.get('authorization') || '';
   const tok = h.startsWith('Bearer ') ? h.slice(7).trim() : '';

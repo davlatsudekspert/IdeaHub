@@ -1,0 +1,22 @@
+# Mahalliy ishlab chiqish uchun (wrangler dev). Nusxalab .dev.vars deb saqlang:
+#   cp .dev.vars.example .dev.vars
+# .dev.vars hech qachon repoga tushmaydi (.gitignore'da).
+#
+# Prodakshinda bu qiymatlar `wrangler secret put <NOM>` bilan qo'yiladi —
+# quyidagi runbook (DEPLOY.md) da batafsil.
+
+# Majburiy — token/parolni imzolash kaliti. Uzun, tasodifiy satr.
+SECRET=local-dev-secret-change-me
+
+# Ixtiyoriy — Google Gemini API kaliti (AI toifalash/klasterlash/yechim uchun).
+# Bo'lmasa ilova ishlayveradi, faqat AI funksiyalari "kutish rejimi"da qoladi.
+GEMINI_API_KEY=
+
+# Ixtiyoriy — Telegram bot tokeni (BotFather'dan). Qo'yilsa "Telegram bilan
+# kirish" vidjeti login oynasida ko'rinadi (bot username wrangler.toml'dagi
+# TG_BOT_NAME dan olinadi).
+TG_BOT_TOKEN=
+
+# Ixtiyoriy — Resend API kaliti (parol tiklash kodini email orqali yuborish uchun).
+RESEND_API_KEY=
+RESEND_FROM=MindHub <onboarding@resend.dev>
