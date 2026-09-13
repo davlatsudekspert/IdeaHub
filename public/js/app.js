@@ -141,9 +141,10 @@ async function boot(initialUser){
   await Promise.allSettled([loadClusters(true), loadNotifCount(), initHomepageExtras(), initFilterRail()]);
   initMurojaatScrollFeed();
   await initPushPermissionPrompt();
-  const urlParams = new URLSearchParams(location.search);
-  const clusterId = urlParams.get('cluster');
-  if (clusterId) { history.replaceState({},'',location.pathname); openCluster(clusterId); }
+  // Joriy URL manziliga qarab to'g'ri bo'limni ochamiz (REDESIGN 2.0 — haqiqiy
+  // sahifa manzillari). Shu manzilga qayta push qilmaslik uchun _skipNextPush.
+  _skipNextPush = true;
+  routeFromLocation();
 }
 function showBanBanner(reason){
   const el=document.getElementById('ban-banner'); const rt=document.getElementById('ban-reason-txt');
@@ -166,6 +167,23 @@ function toggleTheme(){
 function updateThemeBtn(){
   const isDark=document.documentElement.getAttribute('data-theme')==='dark';
   const btn=document.getElementById('theme-btn'); if(btn) btn.innerHTML=isDark?IC.sun:IC.moon;
+}
+
+/* ═══ CHAP PANEL — hamburger tortmasi (REDESIGN 2.0) ═══
+   Doimiy ustun o'rniga endi my.gov.uz uslubidagi overlay tortma: hamburger
+   bosilganda ochiladi, orqa fonga bosilganda yoki ichidagi istalgan havola
+   bosilganda yopiladi. */
+function toggleSidebarDrawer(){
+  const isOpen = document.querySelector('.left-sb')?.classList.contains('open');
+  isOpen ? closeSidebarDrawer() : openSidebarDrawer();
+}
+function openSidebarDrawer(){
+  document.querySelector('.left-sb')?.classList.add('open');
+  document.getElementById('sidebar-backdrop')?.classList.add('open');
+}
+function closeSidebarDrawer(){
+  document.querySelector('.left-sb')?.classList.remove('open');
+  document.getElementById('sidebar-backdrop')?.classList.remove('open');
 }
 
 /* ═══ MAXSUS IMKONIYATLAR REJIMI (REDESIGN.md §3.1) ═══
@@ -203,7 +221,7 @@ document.addEventListener('click', e => {
 });
 
 /* ═══ CHIQISH ═══ */
-function doLogout(){ tokClear();Tok.clr();WS.disconnect();window._me=null;location.reload(); }
+function doLogout(){ tokClear();Tok.clr();WS.disconnect();window._me=null;location.href='/'; }
 
 /* ═══ PROFIL ═══ */
 /* Shaxsiy kabinet (REDESIGN.md §3.5 — my.gov.uz uslubida): profil + real
@@ -218,6 +236,8 @@ async function openUser(param){
     const u=await API.getUser(param);
     window._curProfileId = u.id;
     const isMe = u.is_me || u.id===window._me?.id;
+    const path = isMe ? '/kabinet' : '/foydalanuvchi/'+encodeURIComponent(u.username);
+    if (location.pathname !== path) history.replaceState({ sec:'user', param }, '', path);
     const problems = u.problems || [];
     const resolved = problems.filter(p => p.cluster_status==='resolved' || p.cluster_status==='closed').length;
     const inProgress = problems.length - resolved;
@@ -386,6 +406,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('auth').style.display = 'flex';
     initTelegramWidget();
   }
+  // Tortma ichidagi istalgan havola bosilganda avtomatik yopiladi (kutilgan UX)
+  document.querySelector('.left-sb')?.addEventListener('click', e => {
+    if (e.target.closest('.lsb-btn')) closeSidebarDrawer();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebarDrawer(); });
 });
 
 window.showAuthModal=showAuthModal; window.closeAuthModal=closeAuthModal; window.switchAmTab=switchAmTab; window.requireAuth=requireAuth;
@@ -393,6 +418,7 @@ window.doAmLogin=doAmLogin; window.doAmReg=doAmReg; window.doSendCode=doSendCode
 window.onTelegramAuth=onTelegramAuth; window.finishTgReg=finishTgReg; window.initTelegramWidget=initTelegramWidget;
 window.toggleA11y=toggleA11y; window.toggleLangDD=toggleLangDD; window.selectLang=selectLang;
 window.syncTopbar=syncTopbar; window.boot=boot; window.toggleTheme=toggleTheme; window.doLogout=doLogout;
+window.toggleSidebarDrawer=toggleSidebarDrawer; window.openSidebarDrawer=openSidebarDrawer; window.closeSidebarDrawer=closeSidebarDrawer;
 window.openUser=openUser; window.uploadAvatar=uploadAvatar; window.loadSettings=loadSettings; window.saveProfile=saveProfile; window.doChpass=doChpass;
 window.loadNotifCount=loadNotifCount; window.loadNotifs=loadNotifs; window.markNotifs=markNotifs;
 window.doSearch=doSearch; window.debouncedSearch=debouncedSearch; window.onTopSearch=onTopSearch; window.openMobileSearch=openMobileSearch;

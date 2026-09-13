@@ -85,17 +85,25 @@ function catChip(catId) {
 }
 const STATUS_LABEL = { open:"Ochiq", solution_proposed:"Yechim taklif qilindi", resolved:"Hal qilindi", closed:"Yopilgan" };
 
-/* ═══ SECTION ROUTER ═══ */
-let _curSec = 'home';
+/* ═══ SECTION ROUTER (REDESIGN 2.0 — haqiqiy sahifa manzillari) ═══
+   Har bir bo'lim endi o'zining haqiqiy URL yo'liga ega — orqaga/oldinga
+   tugmalari ishlaydi, havolani ulashish mumkin, sahifani yangilash o'sha
+   joyda qoladi. wrangler.toml'dagi assets "single-page-application" fallback
+   allaqachon sozlangani uchun backend'da hech narsa o'zgartirish shart emas:
+   har qanday noma'lum yo'l index.html'ga tushadi, shu yerdagi JS esa
+   joriy location.pathname'ni o'qib to'g'ri bo'limni ochadi. */
+const SECTION_PATHS = {
+  murojaat: '/', notifs: '/bildirishnomalar', user: '/kabinet',
+  settings: '/sozlamalar', admin: '/boshqaruv', search: '/qidiruv', cluster: '/murojaat',
+};
+let _curSec = 'murojaat';
+let _skipNextPush = false;
 function curSec() { return _curSec; }
 function goSec(id) {
   _curSec = id;
   pauseAllVideos();
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'sec-'+id));
   document.querySelectorAll('.lsb-btn[data-sec]').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
-  syncRightRail(id);
-  // Full-screen messages view (sidebar hidden)
-  document.getElementById('layout')?.classList.toggle('msgs-full', id === 'msgs');
   // Close mobile search bar when leaving search section
   if (id !== 'search') { const mb = document.getElementById('mobile-search-bar'); if (mb) mb.classList.remove('open'); }
   window.scrollTo(0,0);
@@ -104,22 +112,25 @@ function goSec(id) {
   document.querySelectorAll('.bn-item[id]').forEach(b => b.classList.remove('active'));
   const bnId = bnMap[id];
   if (bnId) document.getElementById(bnId)?.classList.add('active');
+  if (_skipNextPush) { _skipNextPush = false; }
+  else {
+    const path = SECTION_PATHS[id] || '/';
+    if (location.pathname !== path) history.pushState({ sec: id }, '', path);
+  }
 }
-
-/* O'ng panel (#rsb) faqat murojaatlar ro'yxati (filtr) va murojaat tafsiloti
-   (qo'llab-quvvatlash/tarix) bo'limlarida mazmunga ega — boshqa joyda (profil,
-   sozlamalar, bildirishnoma, admin) bo'sh ustun ko'rinib qolmasligi uchun butunlay
-   yashiriladi. 720px dan tor ekranlarda #rsb umuman ko'rinmaydi (CSS) — bu yerda
-   shunchaki qaysi panel "faol" ekanini belgilaymiz. */
-function syncRightRail(id) {
-  const rsb = document.getElementById('rsb');
-  const filterPanel = document.getElementById('rsb-filter-panel');
-  const detailPanel = document.getElementById('rsb-detail-panel');
-  if (!rsb || !filterPanel || !detailPanel) return;
-  const showFilter = id === 'murojaat', showDetail = id === 'cluster';
-  rsb.style.display = (showFilter || showDetail) ? '' : 'none';
-  filterPanel.hidden = !showFilter;
-  detailPanel.hidden = !showDetail;
+/* Orqaga/oldinga tugmalari — goSec()ning o'zi qayta pushState qilmasligi uchun
+   _skipNextPush bilan belgilaymiz, so'ng joriy manzilga mos bo'limni ochamiz. */
+window.addEventListener('popstate', () => { _skipNextPush = true; routeFromLocation(); });
+function routeFromLocation() {
+  const parts = location.pathname.split('/').filter(Boolean);
+  if (parts[0] === 'murojaat' && parts[1]) { openCluster(parts[1]); return; }
+  if (parts[0] === 'foydalanuvchi' && parts[1]) { goSec('user'); openUser(decodeURIComponent(parts[1])); return; }
+  if (parts[0] === 'kabinet') { if (window._me) { goSec('user'); openUser(window._me.id); } return; }
+  if (parts[0] === 'bildirishnomalar') { if (window._me) { goSec('notifs'); loadNotifs(); markNotifs(); } return; }
+  if (parts[0] === 'sozlamalar') { if (window._me) { goSec('settings'); loadSettings(); } return; }
+  if (parts[0] === 'boshqaruv') { if (window._me) { goSec('admin'); loadAdmin(); } return; }
+  if (parts[0] === 'qidiruv') { goSec('search'); return; }
+  goSec('murojaat'); loadClusters(true);
 }
 
 /* ═══ TOKEN ═══ */
