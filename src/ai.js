@@ -33,11 +33,20 @@ async function callGemini(env, prompt, schema) {
   return JSON.parse(text);
 }
 
-/* ── 1. Toifalash ── */
+/* ── 1. Toifalash ──
+   12 ta yo'nalish + "boshqa" — yoshlarga yo'naltirilgan, aniqroq taqsimot
+   (dastlabki 8 tadan kengaytirildi). ID'lar eski qiymatlar bilan mos
+   qoldirildi (talim/yol-xavfsizligi/ekologiya/ijtimoiy/sport/sogliq/
+   raqamlashtirish) — faqat nomi/qamrovi aniqlashtirildi, mavjud
+   murojaat/klasterlar buzilmasligi uchun. */
 const CATEGORY_SCHEMA = {
   type: 'object',
   properties: {
-    category_id: { type: 'string', enum: ['talim', 'yol-xavfsizligi', 'ekologiya', 'ijtimoiy', 'sport', 'sogliq', 'raqamlashtirish', 'boshqa'] },
+    category_id: { type: 'string', enum: [
+      'talim', 'oliy-talim', 'ish-kasb', 'yol-xavfsizligi', 'xavfsizlik',
+      'ekologiya', 'ijtimoiy', 'sport', 'sogliq', 'raqamlashtirish',
+      'uy-joy', 'tadbirkorlik', 'boshqa',
+    ] },
     confidence: { type: 'number' },
   },
   required: ['category_id', 'confidence'],
@@ -48,14 +57,19 @@ export async function categorize(env, title, body) {
   try {
     const prompt = `Sen yoshlar yozgan fuqarolik murojaatlarini toifalaydigan yordamchisan. Faqat JSON bilan javob ber.
 
-Toifalar:
-- talim: Ta'lim infratuzilmasi (maktab, kolej, universitet bilan bog'liq muammolar)
-- yol-xavfsizligi: Yo'l xavfsizligi (piyoda o'tish joyi, svetofor, yo'l belgisi, tezlik)
-- ekologiya: Ekologiya va tozalik (chiqindi, ifloslanish, ko'kalamzorlashtirish, suv)
-- ijtimoiy: Ijtimoiy xizmatlar (jamoat transporti, kommunal xizmatlar, ijtimoiy ta'minot)
-- sport: Sport va bo'sh vaqt (sport maydonchasi, stadion, bolalar maydonchasi, madaniy dam olish)
-- sogliq: Sog'liqni saqlash (shifoxona, poliklinika, tibbiy xizmat sifati va mavjudligi)
-- raqamlashtirish: Raqamlashtirish (internet, elektron xizmatlar, davlat portallari bilan bog'liq muammolar)
+Toifalar (bir-biriga mos kelmasa eng yaqinini tanla):
+- talim: Maktab ta'limi (maktab, kolej — darslik, o'qituvchi, bino, jihoz)
+- oliy-talim: Oliy ta'lim va grantlar (universitet qabuli, kontrakt, grant taqsimoti, talabalar turar joyi)
+- ish-kasb: Ish va kasb (birinchi ish o'rni, amaliyot, tajribasiz yoshlarni ishga olish)
+- yol-xavfsizligi: Transport va yo'llar (jamoat transporti jadvali/chegirmasi, yo'l holati, svetofor, piyoda o'tish joyi)
+- xavfsizlik: Xavfsizlik (maktab atrofidagi xavfsizlik, bulling, kiberfiribgarlik)
+- ekologiya: Ekologiya va hovli (chiqindi, ifloslanish, ko'kalamzorlashtirish, havo/suv sifati)
+- ijtimoiy: Ijtimoiy himoya (nafaqalar, imkoniyati cheklangan yoshlar, yetim bolalar)
+- sport: Sport va bo'sh vaqt (sport maydonchasi, stadion, to'garaklar, yoshlar markazlari)
+- sogliq: Sog'liqni saqlash (shifoxona, poliklinika, ruhiy salomatlik, tibbiy xizmat sifati)
+- raqamlashtirish: Raqamli xizmatlar (davlat portallari, ariza berish tartibi, internet sifati)
+- uy-joy: Uy-joy va kommunal (suv, issiqlik, lift, yosh oilalar uchun ipoteka)
+- tadbirkorlik: Tadbirkorlik (yoshlar startap kreditlari, soliq, biznesni ro'yxatdan o'tkazish)
 - boshqa: Yuqoridagilarga mos kelmaydigan boshqa murojaatlar
 
 Murojaat:

@@ -68,14 +68,21 @@ function fallbackCopy(text) {
 }
 
 /* ═══ MUROJAAT TOIFALARI (server ro'yxati yuklanmagunicha zaxira) ═══ */
+/* Yoshlarga yo'naltirilgan 12 yo'nalish + "boshqa" (5-migratsiyaga mos —
+   ID'lar bazadagi bilan bir xil bo'lishi shart). */
 let CATEGORIES = [
-  { id:'talim', name:"Ta'lim infratuzilmasi", color:'#3D7BEB', icon:'🏫' },
-  { id:'yol-xavfsizligi', name:"Yo'l xavfsizligi", color:'#D9591F', icon:'🚦' },
-  { id:'ekologiya', name:'Ekologiya va tozalik', color:'#238753', icon:'🌱' },
-  { id:'ijtimoiy', name:'Ijtimoiy xizmatlar', color:'#8B5CF6', icon:'🤝' },
+  { id:'talim', name:"Maktab ta'limi", color:'#3D7BEB', icon:'🏫' },
+  { id:'oliy-talim', name:"Oliy ta'lim va grantlar", color:'#9C4FA8', icon:'🎓' },
+  { id:'ish-kasb', name:'Ish va kasb', color:'#C77E1B', icon:'💼' },
+  { id:'yol-xavfsizligi', name:"Transport va yo'llar", color:'#D9591F', icon:'🚌' },
+  { id:'xavfsizlik', name:'Xavfsizlik', color:'#B23A3A', icon:'🛡️' },
+  { id:'ekologiya', name:'Ekologiya va hovli', color:'#238753', icon:'🌱' },
+  { id:'ijtimoiy', name:'Ijtimoiy himoya', color:'#8B5CF6', icon:'🤝' },
   { id:'sport', name:"Sport va bo'sh vaqt", color:'#D6455D', icon:'⚽' },
   { id:'sogliq', name:"Sog'liqni saqlash", color:'#0F7B8A', icon:'⚕️' },
-  { id:'raqamlashtirish', name:'Raqamlashtirish', color:'#5C7A99', icon:'💻' },
+  { id:'raqamlashtirish', name:'Raqamli xizmatlar', color:'#5C7A99', icon:'💻' },
+  { id:'uy-joy', name:'Uy-joy va kommunal', color:'#6B8E4E', icon:'🏠' },
+  { id:'tadbirkorlik', name:'Tadbirkorlik', color:'#C1478A', icon:'🚀' },
   { id:'boshqa', name:'Boshqa', color:'#917B5C', icon:'📌' },
 ];
 function catById(id) { return CATEGORIES.find(c=>c.id===id) || CATEGORIES[CATEGORIES.length-1]; }
@@ -95,6 +102,7 @@ const STATUS_LABEL = { open:"Ochiq", solution_proposed:"Yechim taklif qilindi", 
 const SECTION_PATHS = {
   home: '/', murojaat: '/murojaatlar', notifs: '/bildirishnomalar', user: '/kabinet',
   settings: '/sozlamalar', admin: '/boshqaruv', search: '/qidiruv', cluster: '/murojaat',
+  howworks: '/qanday-ishlaydi', about: '/platforma-haqida', faq: '/savol-javob',
 };
 let _curSec = 'home';
 let _skipNextPush = false;
@@ -127,12 +135,24 @@ function routeFromLocation() {
   if (parts[0] === 'murojaat' && parts[1]) { openCluster(parts[1]); return; }
   if (parts[0] === 'murojaatlar') { goSec('murojaat'); loadClusters(true); return; }
   if (parts[0] === 'foydalanuvchi' && parts[1]) { goSec('user'); openUser(decodeURIComponent(parts[1])); return; }
-  if (parts[0] === 'kabinet') { if (window._me) { goSec('user'); openUser(window._me.id); } return; }
-  if (parts[0] === 'bildirishnomalar') { if (window._me) { goSec('notifs'); loadNotifs(); markNotifs(); } return; }
-  if (parts[0] === 'sozlamalar') { if (window._me) { goSec('settings'); loadSettings(); } return; }
-  if (parts[0] === 'boshqaruv') { if (window._me) { goSec('admin'); loadAdmin(); } return; }
+  if (parts[0] === 'kabinet') { if (window._me) { goSec('user'); openUser(window._me.id); } else guestRedirectHome(); return; }
+  if (parts[0] === 'bildirishnomalar') { if (window._me) { goSec('notifs'); loadNotifs(); markNotifs(); } else guestRedirectHome(); return; }
+  if (parts[0] === 'sozlamalar') { if (window._me) { goSec('settings'); loadSettings(); } else guestRedirectHome(); return; }
+  if (parts[0] === 'boshqaruv') { if (window._me) { goSec('admin'); loadAdmin(); } else guestRedirectHome(); return; }
   if (parts[0] === 'qidiruv') { goSec('search'); return; }
+  if (parts[0] === 'qanday-ishlaydi') { goSec('howworks'); return; }
+  if (parts[0] === 'platforma-haqida') { goSec('about'); initAboutStats(); return; }
+  if (parts[0] === 'savol-javob') { goSec('faq'); return; }
   goSec('home');
+}
+/* Mehmon shaxsiy sahifaga to'g'ridan-to'g'ri havola orqali kirmoqchi bo'lsa
+   (masalan bookmark) — bo'sh/buzilgan holat ko'rsatish o'rniga bosh sahifaga
+   qaytaramiz va kirish oynasini ochamiz. history'ni push emas, replace
+   qilamiz — "noto'g'ri" manzil orqaga tugmasida qolib ketmasin. */
+function guestRedirectHome() {
+  goSec('home');
+  if (location.pathname !== '/') history.replaceState({ sec: 'home' }, '', '/');
+  requireAuth();
 }
 
 /* ═══ TOKEN ═══ */

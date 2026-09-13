@@ -79,6 +79,18 @@ async function findOrCreateSchool(Q, region_id, name) {
   await Q.schoolInsert(id, region_id, clean);
   return id;
 }
+/* Telefon raqamini +998XXXXXXXXX ko'rinishiga normallashtiradi (REDESIGN 3.0
+   — ixtiyoriy aloqa kanali, hali SMS orqali tasdiqlanmaydi). Bo'sh/undefined
+   kirish uchun null (maydon ixtiyoriy); formatga mos kelmasa ham null —
+   chaqiruvchi "bo'sh" bilan "noto'g'ri kiritilgan"ni o'zi ajratadi. */
+function normalizePhone(raw) {
+  const s = (raw || '').trim();
+  if (!s) return null;
+  const digits = s.replace(/[\s\-()]/g, '');
+  const m = digits.match(/^\+?(998)?(\d{9})$/);
+  if (!m) return null;
+  return '+998' + m[2];
+}
 
 /* ═══ AI PIPELINE (submissiondan keyin fonda ishga tushadi) ═══ */
 
@@ -201,10 +213,15 @@ async function route(request, env, ctx, p, q, m) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({ error: "Email manzil noto'g'ri" }, 400);
     if (name.trim().length < 2 || name.trim().length > 60) return json({ error: "Ism 2-60 belgi bo'lishi kerak" }, 400);
     if (region_id && !(await Q.regionGet(region_id))) return json({ error: "Hudud topilmadi" }, 400);
+    // Telefon — ixtiyoriy (REDESIGN 3.0). Hali tasdiqlanmaydi (email kabi) —
+    // shunchaki aloqa kanali, majburiy emas (o'z raqami yo'q yoshroq
+    // o'quvchilarni ro'yxatdan o'tishdan to'sib qo'ymaslik uchun).
+    const phone = normalizePhone(b.phone);
+    if (b.phone && phone === null) return json({ error: "Telefon raqami noto'g'ri (masalan: +998901234567)" }, 400);
     if (await Q.uExists(username, email)) return json({ error: 'Bu username yoki email band' }, 409);
     const school_id = await findOrCreateSchool(Q, region_id, schoolName);
     const id = uid();
-    await Q.uInsert(id, username.toLowerCase(), name.trim(), email.toLowerCase(), hashPass(password, env.SECRET), randColor(), region_id || null, school_id);
+    await Q.uInsert(id, username.toLowerCase(), name.trim(), email.toLowerCase(), hashPass(password, env.SECRET), randColor(), region_id || null, school_id, phone);
     return json({ token: makeToken(id, env.SECRET), user: await Q.uById(id) }, 201);
   }
 
@@ -333,6 +350,11 @@ async function route(request, env, ctx, p, q, m) {
     const b = await readBody(request);
     await Q.uUpdProf((b.name || '').trim(), (b.bio || '').trim(), auth.userId);
     if (b.email) await Q.uUpdEmail(b.email.trim().toLowerCase(), auth.userId);
+    if (b.phone !== undefined) {
+      const phone = normalizePhone(b.phone);
+      if (b.phone && phone === null) return json({ error: "Telefon raqami noto'g'ri (masalan: +998901234567)" }, 400);
+      await Q.uUpdPhone(phone, auth.userId);
+    }
     return json(await Q.uById(auth.userId));
   }
   if (p === '/api/me/avatar' && m === 'POST') {
@@ -808,11 +830,12 @@ async function route(request, env, ctx, p, q, m) {
   if (p === '/api/problems' && m === 'POST') {
     const auth = await requireAuthNotBanned(request, env, Q); if (auth.error) return auth.error;
     const ct = request.headers.get('content-type') || '';
-    let title, body, region_id, schoolName, image = null;
+    let title, body, region_id, schoolName, image = null, latRaw, lngRaw, address;
     if (ct.includes('multipart')) {
       const { fields, files } = await readForm(request);
       title = (fields.title || '').trim(); body = (fields.body || '').trim();
       region_id = fields.region_id || null; schoolName = fields.school_name || '';
+      latRaw = fields.lat; lngRaw = fields.lng; address = (fields.address || '').trim();
       if (files.image) {
         const saved = await saveFileR2(env, files.image, IMG_EXT, 10 * 1024 * 1024);
         if (saved?.tooLarge) return json({ error: 'Rasm 10MB dan oshmasin' }, 413);
@@ -823,14 +846,31 @@ async function route(request, env, ctx, p, q, m) {
       const b = await readBody(request);
       title = (b.title || '').trim(); body = (b.body || '').trim();
       region_id = b.region_id || null; schoolName = b.school_name || '';
+      latRaw = b.lat; lngRaw = b.lng; address = (b.address || '').trim();
     }
     if (!title) return json({ error: 'Sarlavha kerak' }, 400);
     if (title.length > 300) return json({ error: '300 belgidan oshmasin' }, 400);
     if (body.length > 5000) return json({ error: 'Matn 5000 belgidan oshmasin' }, 400);
+    if (address.length > 300) return json({ error: "Manzil 300 belgidan oshmasin" }, 400);
     if (region_id && !(await Q.regionGet(region_id))) return json({ error: 'Hudud topilmadi' }, 400);
+    // Joylashuv — REDESIGN 3.0: muammoni hal qiluvchilar uchun eng muhim
+    // ma'lumot QAYERDA ekani. GPS (lat/lng) YOKI qo'lda yozilgan manzil —
+    // kamida bittasi bo'lishi shart.
+    let lat = null, lng = null;
+    if (latRaw !== undefined && latRaw !== null && latRaw !== '') {
+      lat = Number(latRaw);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) return json({ error: "Joylashuv (lat) noto'g'ri" }, 400);
+    }
+    if (lngRaw !== undefined && lngRaw !== null && lngRaw !== '') {
+      lng = Number(lngRaw);
+      if (!Number.isFinite(lng) || lng < -180 || lng > 180) return json({ error: "Joylashuv (lng) noto'g'ri" }, 400);
+    }
+    if ((lat === null || lng === null) && !address) {
+      return json({ error: "Joylashuvni ko'rsating: GPS orqali aniqlang yoki manzilni qo'lda yozing" }, 400);
+    }
     const school_id = await findOrCreateSchool(Q, region_id, schoolName);
     const id = uid();
-    await Q.pInsert(id, auth.userId, region_id, school_id, title, body, image);
+    await Q.pInsert(id, auth.userId, region_id, school_id, title, body, image, lat, lng, address || null);
     const problem = await Q.pOne(id);
     ctx.waitUntil(processProblemAI(env, Q, { ...problem, region_id, school_id }));
     return json(problem, 201);

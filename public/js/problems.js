@@ -21,6 +21,16 @@ function loadCategoryFilters() {
     CATEGORIES.map(c => `<button class="filter-chip${_feedCategory===c.id?' active':''}" style="${_feedCategory===c.id?`background:${c.color};border-color:${c.color}`:''};color:${_feedCategory===c.id?'#fff':c.color}" onclick="setFeedCategory('${c.id}')">${c.icon} ${esc(c.name)}</button>`).join('');
 }
 function setFeedCategory(catId) { _feedCategory = catId; loadCategoryFilters(); loadClusters(true); }
+/* Footer "Yo'nalishlar" ustuni — CATEGORIES massividan dinamik chiqariladi
+   (REDESIGN 3.0, Task #56). Ilgari bu yerda qattiq yozilgan 4 ta nom bor edi
+   va toifalar 8'dan 13'ga kengaytirilganda eskirib qolgan edi — endi manba
+   bitta joyda (core.js'dagi CATEGORIES), footer hech qachon undan orqada
+   qolmaydi. */
+function initFooterCategories() {
+  const el = document.getElementById('sf-yonalishlar-links'); if (!el) return;
+  const top = CATEGORIES.filter(c => c.id !== 'boshqa').slice(0, 4);
+  el.innerHTML = top.map(c => `<a onclick="goSec('murojaat');setFeedCategory('${c.id}')">${esc(c.name)}</a>`).join('');
+}
 /* Bosh sahifadan (boshqa bo'lim) murojaatlar ro'yxatiga toifa bilan o'tish —
    endi alohida sahifalar (REDESIGN 2.1), shu sabab scrollIntoView o'rniga
    to'g'ridan-to'g'ri navigatsiya qilinadi (goSec sahifa boshiga aylantiradi). */
@@ -55,19 +65,47 @@ function clearMurojaatFilters() {
   loadClusters(true);
 }
 function initFilterRail() { loadRegionsInto(['rsb-region-sel']); renderMurojaatStatusFilter(); }
+/* "Hal qilinganlar" — top-nav/tortmadagi to'g'ridan-to'g'ri havola (Task #55).
+   Alohida sahifa emas, Murojaatlar ro'yxatining "hal qilingan" holatiga
+   filtrlangan, boshqa filtrlar tozalangan holda ochilishi — har safar bosilganda
+   bashorat qilinadigan, "hammasi hal qilingan" ko'rinishini beradi. */
+function goResolved() {
+  goSec('murojaat');
+  _feedCategory = null; _murojaatRegion = null; _murojaatStatus = 'resolved';
+  const sel = document.getElementById('rsb-region-sel'); if (sel) sel.value = '';
+  loadCategoryFilters();
+  renderMurojaatStatusFilter();
+  loadClusters(true);
+}
 
 /* ═══ BOSH SAHIFA — hero/statistika/Yo'nalishlar/hududlar (REDESIGN.md §3.2) ═══
    Bittasi ishlamasa ham qolganlari ko'rinishi uchun har biri alohida try/catch'da. */
 const YONALISH_DESC = {
-  'talim': "Maktab, kolej, universitet infratuzilmasi",
-  'yol-xavfsizligi': "Svetofor, o'tish joyi, yo'l belgisi",
+  'talim': "Maktab, kolej infratuzilmasi",
+  'oliy-talim': "Qabul, kontrakt, grant, talabalar turar joyi",
+  'ish-kasb': "Birinchi ish o'rni, amaliyot",
+  'yol-xavfsizligi': "Transport jadvali/chegirmasi, yo'l holati",
+  'xavfsizlik': "Bulling, kiberfiribgarlik, maktab atrofi",
   'ekologiya': "Chiqindi, ifloslanish, ko'kalamzorlashtirish",
-  'ijtimoiy': "Transport, kommunal xizmatlar",
+  'ijtimoiy': "Nafaqalar, imkoniyati cheklangan yoshlar",
   'sport': "Sport maydonchasi, dam olish maskanlari",
-  'sogliq': "Shifoxona, poliklinika xizmatlari",
-  'raqamlashtirish': "Internet, elektron davlat xizmatlari",
+  'sogliq': "Shifoxona, poliklinika, ruhiy salomatlik",
+  'raqamlashtirish': "Davlat portallari, internet sifati",
+  'uy-joy': "Suv, issiqlik, lift, ipoteka",
+  'tadbirkorlik': "Startap kreditlari, biznes ro'yxatga olish",
   'boshqa': "Yuqoridagilarga mos kelmaydigan murojaatlar",
 };
+/* Platforma haqida sahifasidagi jonli statistika — bosh sahifadagi bilan bir
+   xil ochiq /api endpoint, faqat boshqa elementlarga yoziladi (REDESIGN 3.0). */
+async function initAboutStats() {
+  try {
+    const s = await API.publicStats();
+    document.getElementById('about-stat-total').textContent = fmtNum(s.total_problems);
+    document.getElementById('about-stat-resolved').textContent = s.resolved_pct + '%';
+    document.getElementById('about-stat-solutions').textContent = fmtNum(s.solutions);
+    document.getElementById('about-stat-places').textContent = fmtNum(s.places);
+  } catch {}
+}
 async function initHomepageExtras() {
   try {
     const s = await API.publicStats();
@@ -186,6 +224,15 @@ function renderClusterDetail(c) {
   const cnt = document.getElementById('cluster-detail-cnt');
   const place = [c.region_name, c.school_name].filter(Boolean).join(' · ');
   const isAdmin = window._me?.role === 'admin' || window._me?.role === 'leader';
+  // Joylashuv — birlashtirilgan murojaatlar orasidan birinchi ma'lumotli
+  // (GPS yoki manzil) yozuvni ko'rsatamiz (REDESIGN 3.0).
+  const locProblem = (c.problems||[]).find(p => (p.lat != null && p.lng != null) || p.address);
+  const locParts = [];
+  if (locProblem?.address) locParts.push(esc(locProblem.address));
+  if (locProblem?.lat != null && locProblem?.lng != null) {
+    locParts.push(`<a href="https://www.openstreetmap.org/?mlat=${locProblem.lat}&mlon=${locProblem.lng}#map=17/${locProblem.lat}/${locProblem.lng}" target="_blank" rel="noopener" style="color:var(--gold-dk);text-decoration:underline">Xaritada ko'rish ↗</a>`);
+  }
+  const locRow = locParts.length ? `<div class="detail-meta-row">📍 <strong>Manzil:</strong> ${locParts.join(' &nbsp;·&nbsp; ')}</div>` : '';
   cnt.innerHTML = `
     <div class="cl-detail-hd">
       <div class="cl-meta">${catChip(c.category_id)}<span class="cl-status ${c.status}">${STATUS_LABEL[c.status]||c.status}</span>${place?`<span class="cl-place">📍 ${esc(place)}</span>`:''}</div>
@@ -202,6 +249,7 @@ function renderClusterDetail(c) {
     </div>
     <div class="detail-meta-card">
       <div class="detail-meta-row">🏷️ <strong>Biriktiruv:</strong> Hali rasmiy idora yoki mas'ul shaxsga biriktirilmagan.</div>
+      ${locRow}
       <div class="detail-meta-row">🕐 <strong>Yuborildi:</strong> ${fmtDate(c.created_at)}${c.resolved_at ? ` &nbsp;·&nbsp; <strong>Hal qilindi:</strong> ${fmtDate(c.resolved_at)}` : ' &nbsp;·&nbsp; Hal qilinishi kutilmoqda'}</div>
     </div>
     <div class="tabs-row">
@@ -324,7 +372,9 @@ function openSubmitProblem() {
   document.getElementById('subprob-title').value = '';
   document.getElementById('subprob-body').value = '';
   document.getElementById('subprob-school').value = '';
+  document.getElementById('subprob-address').value = '';
   clearSubProbImg();
+  resetSubProbLocation();
   loadRegionsInto(['subprob-region']);
   if (window._me?.region_id) document.getElementById('subprob-region').value = window._me.region_id;
   document.getElementById('subprob-overlay').classList.add('open');
@@ -344,24 +394,56 @@ function clearSubProbImg() {
   const el = document.getElementById('subprob-img-preview'); if (el) el.innerHTML = '';
   const drop = document.getElementById('subprob-img-drop'); if (drop) drop.style.display = '';
 }
+/* ═══ MUROJAAT JOYLASHUVI ═══ — GPS (brauzer geolokatsiyasi) YOKI qo'lda
+   yozilgan manzil, kamida bittasi majburiy (backend ham tekshiradi). */
+let _subProbGeo = null;
+function resetSubProbLocation() {
+  _subProbGeo = null;
+  const statusEl = document.getElementById('subprob-geo-status'); if (statusEl) statusEl.textContent = '';
+  const btn = document.getElementById('subprob-geo-btn'); if (btn) { btn.disabled = false; btn.innerHTML = '📍 Joriy joylashuvni aniqlash'; }
+}
+function captureSubProbLocation() {
+  const statusEl = document.getElementById('subprob-geo-status');
+  const btn = document.getElementById('subprob-geo-btn');
+  if (!navigator.geolocation) { if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = "Brauzeringiz geolokatsiyani qo'llab-quvvatlamaydi — manzilni qo'lda yozing."; } return; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spin" style="width:13px;height:13px;margin:0;border-width:2px;display:inline-block"></div> Aniqlanmoqda...'; }
+  if (statusEl) { statusEl.style.color = 'var(--tx4)'; statusEl.textContent = ''; }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      _subProbGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (statusEl) { statusEl.style.color = 'var(--grn)'; statusEl.textContent = `✅ Joylashuv aniqlandi (${_subProbGeo.lat.toFixed(5)}, ${_subProbGeo.lng.toFixed(5)})`; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '📍 Qayta aniqlash'; }
+    },
+    err => {
+      _subProbGeo = null;
+      if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = err.code === err.PERMISSION_DENIED ? "Joylashuvga ruxsat berilmadi — manzilni qo'lda yozing." : "Joylashuvni aniqlab bo'lmadi — manzilni qo'lda yozing."; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '📍 Joriy joylashuvni aniqlash'; }
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
 async function doSubmitProblem() {
   const title = (document.getElementById('subprob-title').value||'').trim();
   const body = (document.getElementById('subprob-body').value||'').trim();
   const region_id = document.getElementById('subprob-region').value;
   const school_name = (document.getElementById('subprob-school').value||'').trim();
+  const address = (document.getElementById('subprob-address').value||'').trim();
   if (!title) { toast('Sarlavha kerak'); return; }
+  if (!_subProbGeo && !address) { toast("Joylashuvni ko'rsating: GPS orqali aniqlang yoki manzilni yozing"); return; }
   const btn = document.getElementById('subprob-btn');
   btn.disabled = true; btn.innerHTML = '<div class="spin" style="width:14px;height:14px;margin:0;border-width:2px"></div>';
   try {
     const file = document.getElementById('subprob-img-file').files?.[0];
+    const loc = { lat: _subProbGeo?.lat ?? '', lng: _subProbGeo?.lng ?? '', address };
     let problem;
     if (file) {
       const fd = new FormData();
       fd.append('title',title); fd.append('body',body); fd.append('region_id',region_id); fd.append('school_name',school_name);
+      fd.append('lat',loc.lat); fd.append('lng',loc.lng); fd.append('address',loc.address);
       fd.append('image', file);
       problem = await API.createProblem(fd, true);
     } else {
-      problem = await API.createProblem({ title, body, region_id, school_name });
+      problem = await API.createProblem({ title, body, region_id, school_name, ...loc });
     }
     closeSubmitProblem();
     toast("Murojaat yuborildi! AI tahlil qilmoqda... 🤖");
@@ -386,11 +468,12 @@ function initProblemWS() {
 /* Shikoyat (report) uchun umumiy modal core.js'da — bu yerda takror aniqlanmaydi,
    openReport('id','problem') core.js'dagi bitta unified modalni chaqiradi. */
 
-window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory; window.goMurojaatlar=goMurojaatlar; window.initHomepageExtras=initHomepageExtras;
+window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory; window.goMurojaatlar=goMurojaatlar; window.goResolved=goResolved; window.initHomepageExtras=initHomepageExtras; window.initAboutStats=initAboutStats;
 window.buildClusterCard=buildClusterCard; window.loadClusters=loadClusters; window.setMurojaatSort=setMurojaatSort; window.initMurojaatScrollFeed=initMurojaatScrollFeed;
 window.openCluster=openCluster; window.switchClusterTab=switchClusterTab; window.toggleSupport=toggleSupport; window.changeClusterStatus=changeClusterStatus;
 window.submitComment=submitComment; window.promptSolution=promptSolution; window.doGenerateSolutions=doGenerateSolutions;
 window.voteSolutionBtn=voteSolutionBtn; window.acceptSolutionBtn=acceptSolutionBtn;
 window.openSubmitProblem=openSubmitProblem; window.closeSubmitProblem=closeSubmitProblem; window.previewSubProbImg=previewSubProbImg; window.clearSubProbImg=clearSubProbImg; window.doSubmitProblem=doSubmitProblem;
+window.captureSubProbLocation=captureSubProbLocation; window.resetSubProbLocation=resetSubProbLocation;
 window.initProblemWS=initProblemWS;
 window.setMurojaatRegion=setMurojaatRegion; window.setMurojaatStatus=setMurojaatStatus; window.clearMurojaatFilters=clearMurojaatFilters; window.initFilterRail=initFilterRail;

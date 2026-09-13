@@ -747,7 +747,6 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
   padding:0 18px;font-size:12px;color:var(--ink-muted);flex-shrink:0;
 }
 .ub-left{display:flex;align-items:center;gap:12px;overflow:hidden;white-space:nowrap;min-width:0;}
-.ub-hotline{font-weight:700;color:var(--navy-900);flex-shrink:0;}
 .ub-tag{opacity:.85;overflow:hidden;text-overflow:ellipsis;}
 .ub-right{display:flex;align-items:center;gap:4px;flex-shrink:0;}
 .ub-btn{display:flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:999px;border:none;background:none;color:var(--ink-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .14s;}
@@ -762,7 +761,7 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .ub-lang-item:hover{background:var(--surface-alt);}
 .ub-lang-item.active{color:var(--gold-dk);font-weight:700;}
 @media(max-width:680px){ .ub-tag{display:none;} }
-@media(max-width:460px){ .utility-bar{padding:0 10px;} .ub-hotline{font-size:11px;} .ub-btn span.ub-btn-label{display:none;} }
+@media(max-width:460px){ .utility-bar{padding:0 10px;} .ub-btn span.ub-btn-label{display:none;} }
 
 /* TOPBAR */
 #topbar{
@@ -816,12 +815,25 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .tb-post-btn{display:inline-flex;align-items:center;gap:6px;background:var(--gold);color:#fff;border-radius:999px;padding:7px 16px;font-size:13px;font-weight:600;transition:all .16s;flex-shrink:0;cursor:pointer;}
 .tb-post-btn:hover{background:var(--gold-lt);transform:translateY(-1px);}
 .tb-post-btn svg{width:13px!important;height:13px!important;}
-.tb-av-wrap{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 8px 4px 4px;border-radius:var(--r);border:1px solid transparent;transition:all .15s;margin-left:2px;}
-.tb-av-wrap:hover{background:var(--bg2);border-color:var(--border2);}
+/* Hisob bo'limi — REDESIGN 3.0: avatar bosilsa to'g'ridan-to'g'ri kabinetga
+   (eng tez-tez kerak bo'ladigan amal), ▾ bosilsa esa kichik menyu (Sozlamalar/
+   Boshqaruv paneli/Chiqish) — asosiy .top-nav endi faqat kontent bo'limlarini
+   ko'rsatadi, hisobga tegishlilari bu yerga ko'chirildi. */
+.tb-av-wrap{position:relative;display:flex;align-items:center;margin-left:2px;}
+.tb-av-main{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 6px 4px 4px;border-radius:var(--r);transition:all .15s;}
+.tb-av-main:hover{background:var(--bg2);}
+.tb-av-caret{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:var(--tx4);transition:all .15s;}
+.tb-av-caret:hover{background:var(--bg2);color:var(--tx1);}
+.tb-av-caret svg{width:13px!important;height:13px!important;}
+#account-dd{right:0;}
 .tb-av{width:28px;height:28px;font-size:10px;flex-shrink:0;}
 .tb-av-info{display:flex;flex-direction:column;line-height:1.2;}
 .tb-av-name{font-size:13px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;color:var(--tx1);}
 .tb-av-karma{font-size:11px;color:var(--gold);}
+/* Mehmon (kirmagan) holat — REDESIGN 3.0: kontent hammaga ochiq, shu sabab
+   topbar'da avatar o'rniga Kirish/Ro'yxat tugmalari ko'rsatiladi. */
+.tb-guest-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.tb-guest-actions .btn{padding:7px 14px;font-size:12.5px;}
 
 /* LAYOUT — REDESIGN 2.0: eski 3-ustunli "dashboard" qobig'i (doimiy chap panel +
    doimiy o'ng panel) olib tashlandi. Endi bitta markaziy ustun — sayt an'anaviy
@@ -958,6 +970,28 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .section-hd{margin:28px 0 12px;}
 .section-hd h2{font-size:20px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);}
 
+/* ═══ MA'LUMOT SAHIFALARI — Qanday ishlaydi / Platforma haqida / Savol-javob
+   (REDESIGN 3.0, Task #56) — o'qish uchun tor ustun, matn ustuvor. ═══ */
+.content-page{max-width:760px;margin:8px auto 40px;}
+.content-page h1{font-size:26px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;color:var(--tx1);margin-bottom:8px;}
+.content-page .cp-lead{font-size:15px;color:var(--tx3);line-height:1.7;margin-bottom:26px;}
+.content-page h2{font-size:17px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:var(--tx1);margin:26px 0 10px;}
+.content-page p{font-size:14px;color:var(--tx2);line-height:1.75;margin-bottom:12px;}
+.howworks-steps{display:flex;flex-direction:column;gap:12px;margin:18px 0 8px;}
+.hw-step{display:flex;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;}
+.hw-step-num{width:34px;height:34px;border-radius:50%;background:var(--gold-soft);color:var(--gold-dk);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;}
+.hw-step-body h3{font-size:14.5px;font-weight:700;color:var(--tx1);margin-bottom:4px;}
+.hw-step-body p{font-size:13.5px;color:var(--tx3);line-height:1.6;margin:0;}
+.faq-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:8px;overflow:hidden;}
+.faq-item summary{padding:14px 16px;font-size:14px;font-weight:700;color:var(--tx1);cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.faq-item summary::-webkit-details-marker{display:none;}
+.faq-item summary::after{content:'+';font-size:20px;color:var(--tx4);font-weight:400;flex-shrink:0;transition:transform .2s;}
+.faq-item[open] summary::after{transform:rotate(45deg);}
+.faq-item .faq-a{padding:0 16px 16px;font-size:13.5px;color:var(--tx3);line-height:1.7;}
+.about-mission{background:var(--navy-900);color:rgba(255,255,255,.92);border-radius:var(--r-xl);padding:30px 28px;margin-bottom:22px;}
+.about-mission .cp-tag{font-size:20px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;margin-bottom:8px;}
+.about-mission p{color:rgba(255,255,255,.78);margin:0;}
+
 /* ── Hero — foydalanuvchi talabi bilan tekis bitta rang, gradient/bezaksiz ── */
 .hero-band{
   position:relative;overflow:hidden;border-radius:var(--r-xl);margin-bottom:10px;
@@ -984,6 +1018,11 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 }
 .stat-item .stat-num{font-size:26px;font-weight:800;color:var(--gold-dk);font-variant-numeric:tabular-nums;font-feature-settings:"tnum";font-family:'Plus Jakarta Sans',sans-serif;}
 .stat-item .stat-label{font-size:11.5px;color:var(--ink-muted);margin-top:2px;}
+/* .stats-strip'ning -28px yuqori bo'shlig'i bosh sahifada hero-band ustiga
+   "suzib turgan karta" effekti uchun mo'ljallangan -- Platforma haqida
+   sahifasida oddiy sarlavha ostida ishlatilganda shu manfiy bo'shliq
+   sarlavhani bosib qo'yardi (REDESIGN 3.0, Task #56/57 QA topilmasi). */
+#about-stats-strip{margin-top:0;}
 
 /* ── Yo'nalishlar gridi ── */
 .yonalish-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
@@ -1222,7 +1261,6 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .sr-user-sub{font-size:12px;color:var(--tx4);}
 
 /* AUTH */
-#auth{min-height:calc(100vh - 36px);display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
 .auth-wrap{display:flex;max-width:860px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--shadow-lg);animation:fadeUp .45s cubic-bezier(.34,1.56,.64,1);}
 .auth-left{flex:1;background:linear-gradient(150deg,var(--navy-900) 0%,var(--navy-800) 55%,var(--navy-700) 100%);padding:40px 36px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;}
 .auth-left::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 8px 8px,rgba(212,160,23,.35) 1.5px,transparent 0);background-size:26px 26px;opacity:.35;pointer-events:none;}
@@ -1260,11 +1298,14 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
   content:'';position:absolute;top:0;left:0;right:0;height:3px;
   background:linear-gradient(to right,#0099B5 0% 30%,#CE1126 30% 35%,#FFFFFF 35% 65%,#CE1126 65% 70%,#1EB53A 70% 100%);
 }
-.sf-inner{max-width:1200px;margin:0 auto;padding:36px 24px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:26px;}
+.sf-inner{max-width:1200px;margin:0 auto;padding:36px 24px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:26px;}
 .sf-col h4{color:#fff;font-size:12.5px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em;}
 .sf-col a{display:block;color:rgba(255,255,255,.68);font-size:13px;padding:4px 0;cursor:pointer;transition:color .14s;}
 .sf-col a:hover{color:var(--gold-lt);}
-.sf-bottom{border-top:1px solid rgba(255,255,255,.12);padding:14px 24px;max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:11.5px;color:rgba(255,255,255,.5);}
+.sf-bottom{border-top:1px solid rgba(255,255,255,.12);padding:14px 24px;max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 20px;font-size:11.5px;color:rgba(255,255,255,.5);}
+.sf-bottom-legal{display:flex;gap:16px;flex-wrap:wrap;}
+.sf-bottom-legal a{color:rgba(255,255,255,.5);cursor:pointer;text-decoration:none;transition:color .14s;}
+.sf-bottom-legal a:hover{color:rgba(255,255,255,.8);}
 @media(max-width:800px){ .sf-inner{grid-template-columns:repeat(2,1fr);} }
 @media(max-width:460px){ .sf-inner{grid-template-columns:1fr;gap:20px;} }
 @media(max-width:600px){ .site-footer{margin-bottom:58px;} }
@@ -1330,7 +1371,6 @@ body { overflow-x: hidden; }
     position: fixed; top: 4px; left: 0; right: 0; z-index: 301;
     height: 32px; font-size: 11px; padding: 0 10px;
   }
-  .ub-hotline { font-size: 11px; }
 
   /* ── Fixed Topbar (bayroq + utility bar balandligicha pastroqda: 4+32=36px) ── */
   #topbar {
@@ -1352,6 +1392,10 @@ body { overflow-x: hidden; }
   .tb-post-btn svg { width: 16px !important; height: 16px !important; }
   .tb-av-wrap   { padding: 4px; border-radius: 50%; }
   .tb-av-wrap .tb-av-info { display: none; }
+  /* Tor ekranda ikkala mehmon tugmasiga joy yo'q — Ro'yxat kirish
+     modalining o'z ichidagi tab orqali ham yetarli darajada erishiladi. */
+  .tb-guest-actions .btn-gold { display: none; }
+  .tb-guest-actions .btn-ghost { padding: 6px 12px; font-size: 12px; }
 
   /* ── Layout offset (bayroq+utility bar+topbar = 36+52+~10px bo'shliq) ── */
   #layout {

@@ -26,7 +26,6 @@
 <!-- UTILITY BAR (REDESIGN.md §3.1) — global, auth va app holatida ham ko'rinadi -->
 <div class="utility-bar">
   <div class="ub-left">
-    <span class="ub-hotline">📞 Ishonch telefoni: 1006</span>
     <span class="ub-tag">O'zbekiston Respublikasi yoshlari uchun</span>
   </div>
   <div class="ub-right">
@@ -89,6 +88,7 @@
         <div class="form-row"><input class="inp" id="am-reg-user" placeholder="Username (lotin, raqam, _)"></div>
         <div class="form-row"><input class="inp" id="am-reg-email" placeholder="Email" type="email"></div>
         <div class="form-row"><input class="inp" id="am-reg-pass" placeholder="Parol (6+ belgi)" type="password" onkeydown="if(event.key==='Enter')doAmReg()"></div>
+        <div class="form-row"><input class="inp" id="am-reg-phone" placeholder="Telefon (ixtiyoriy): +998901234567" type="tel" onkeydown="if(event.key==='Enter')doAmReg()"></div>
         <div class="form-row"><label class="form-lbl">Hudud (ixtiyoriy)</label><select class="sel" id="am-reg-region"><option value="">Tanlanmagan</option></select></div>
         <div class="form-row"><label class="form-lbl">Maktab / muassasa (ixtiyoriy)</label><input class="inp" id="am-reg-school" placeholder="Masalan: 12-maktab"></div>
         <button class="btn btn-gold" style="width:100%" id="am-reg-btn" onclick="doAmReg()">Ro'yxatdan o'tish</button>
@@ -108,21 +108,6 @@
       </div>
       <button class="auth-forgot" type="button" onclick="switchAmTab('login')" style="margin-top:16px">← Kirishga qaytish</button>
     </div>
-  </div>
-</div>
-
-<!-- AUTH LANDING -->
-<div id="auth" style="display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);flex-direction:column;gap:32px;padding:40px 20px">
-  <div style="text-align:center">
-    <div style="width:80px;height:80px;background:var(--gold);border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 12px 40px var(--gold-glow)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" width="40" height="40"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    </div>
-    <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:42px;font-weight:800;color:var(--tx1)">Mind<span style="color:var(--gold)">Hub</span></div>
-    <div style="color:var(--tx3);margin-top:10px;font-size:16px;max-width:420px">Muammoni ko'r — yechimini yarat. Murojaatingizni yuboring, AI uni toifalab o'xshashlari bilan birlashtiradi va yechim topishga yordam beradi.</div>
-  </div>
-  <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
-    <button class="btn btn-gold" style="padding:14px 48px;font-size:16px" onclick="showAuthModal();switchAmTab('register')">Boshlash</button>
-    <button class="btn btn-ghost" style="padding:10px 32px" onclick="showAuthModal();switchAmTab('login')">Kirish</button>
   </div>
 </div>
 
@@ -149,9 +134,23 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Muammo ko'tarish
       </button>
-      <div class="tb-av-wrap" onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">
-        <div class="av tb-av" id="tb-av"></div>
-        <div class="tb-av-info"><span class="tb-av-name" id="tb-av-name">Mehmon</span><span class="tb-av-karma" id="tb-av-karma"></span></div>
+      <div class="tb-guest-actions" id="tb-guest-actions">
+        <button class="btn btn-ghost btn-sm" onclick="showAuthModal();switchAmTab('login')">Kirish</button>
+        <button class="btn btn-gold btn-sm" onclick="showAuthModal();switchAmTab('register')">Ro'yxatdan o'tish</button>
+      </div>
+      <div class="tb-av-wrap" id="tb-av-wrap" style="display:none">
+        <div class="tb-av-main" onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">
+          <div class="av tb-av" id="tb-av"></div>
+          <div class="tb-av-info"><span class="tb-av-name" id="tb-av-name">Mehmon</span><span class="tb-av-karma" id="tb-av-karma"></span></div>
+        </div>
+        <button class="tb-av-caret" onclick="requireAuth(()=>toggleAccountDD(event))" aria-label="Hisob menyusi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="ub-lang-dd" id="account-dd">
+          <button class="ub-lang-item" onclick="goSec('settings');loadSettings();closeAccountDD()">⚙️ Sozlamalar</button>
+          <button class="ub-lang-item" id="account-dd-admin" onclick="goSec('admin');loadAdmin();closeAccountDD()" style="display:none">🛡️ Boshqaruv paneli</button>
+          <button class="ub-lang-item" onclick="doLogout()">🚪 Chiqish</button>
+        </div>
       </div>
     </div>
   </header>
@@ -162,10 +161,7 @@
   <nav class="top-nav">
     <button class="top-nav-item active" data-sec="home" onclick="goSec('home')">Bosh sahifa</button>
     <button class="top-nav-item" data-sec="murojaat" onclick="goSec('murojaat');loadClusters(true)">Murojaatlar</button>
-    <button class="top-nav-item" data-sec="notifs" onclick="requireAuth(()=>{goSec('notifs');loadNotifs();markNotifs();})">Bildirishnomalar</button>
-    <button class="top-nav-item" data-sec="user" onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">Shaxsiy kabinet</button>
-    <button class="top-nav-item" data-sec="settings" onclick="goSec('settings');loadSettings()">Sozlamalar</button>
-    <button class="top-nav-item" id="admin-topnav" data-sec="admin" onclick="goSec('admin');loadAdmin()" hidden>Boshqaruv paneli</button>
+    <button class="top-nav-item" onclick="goResolved()">✅ Hal qilinganlar</button>
   </nav>
 
   <!-- MOBILE SEARCH BAR -->
@@ -194,12 +190,13 @@
           <div class="lsb-divider"></div>
           <button class="lsb-btn active" data-sec="home" onclick="goSec('home')"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Bosh sahifa</button>
           <button class="lsb-btn" data-sec="murojaat" onclick="goSec('murojaat');loadClusters(true)"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Murojaatlar <span style="margin-left:auto;font-size:9px;background:var(--gold-soft);color:var(--gold-dk);padding:1px 6px;border-radius:8px;font-weight:700">AI</span></button>
-          <button class="lsb-btn" data-sec="notifs" onclick="goSec('notifs');loadNotifs();markNotifs()"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></span>Bildirishnomalar<span class="badge" id="notif-badge-lsb" style="display:none;margin-left:auto"></span></button>
+          <button class="lsb-btn" onclick="goResolved()"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>Hal qilinganlar</button>
+          <button class="lsb-btn" data-sec="notifs" onclick="requireAuth(()=>{goSec('notifs');loadNotifs();markNotifs()})"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></span>Bildirishnomalar<span class="badge" id="notif-badge-lsb" style="display:none;margin-left:auto"></span></button>
           <button class="lsb-btn" data-sec="user" onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Shaxsiy kabinet</button>
-          <button class="lsb-btn" data-sec="settings" onclick="goSec('settings');loadSettings()"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>Sozlamalar</button>
+          <button class="lsb-btn" data-sec="settings" onclick="requireAuth(()=>{goSec('settings');loadSettings()})"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>Sozlamalar</button>
           <button class="lsb-btn" id="admin-lsb" data-sec="admin" onclick="goSec('admin');loadAdmin()" style="display:none"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Boshqaruv paneli</button>
-          <div class="lsb-divider"></div>
-          <button class="lsb-btn" onclick="doLogout()"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>Chiqish</button>
+          <div class="lsb-divider" id="lsb-logout-divider" style="display:none"></div>
+          <button class="lsb-btn" id="lsb-logout" onclick="doLogout()" style="display:none"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>Chiqish</button>
         </div>
       </div>
     </aside>
@@ -336,6 +333,89 @@
       <div id="sec-search" class="section"><div id="search-res"></div></div>
       <div id="sec-settings" class="section"><div id="settings-cnt"></div></div>
       <div id="sec-admin" class="section"><div id="admin-cnt"></div></div>
+
+      <!-- QANDAY ISHLAYDI (REDESIGN 3.0, Task #56) — README.md'dagi haqiqiy
+           oqimga asoslangan, hech qanday o'ylab topilgan da'vo yo'q. -->
+      <div id="sec-howworks" class="section">
+        <div class="content-page">
+          <h1>Qanday ishlaydi</h1>
+          <div class="cp-lead">Muammoni ko'rgan har bir kishi uni yozadi — sun'iy intellekt uni tahlil qiladi va o'xshashlari bilan birlashtiradi, jamiyat esa qo'llab-quvvatlab ustuvorligini ko'rsatadi.</div>
+          <div class="howworks-steps">
+            <div class="hw-step"><div class="hw-step-num">1</div><div class="hw-step-body"><h3>📝 Muammoni yozing</h3><p>Sarlavha, tafsilot, ixtiyoriy rasm va joylashuv (GPS yoki aniq manzil) bilan murojaat yuboring. Ro'yxatdan o'tish bepul va bir necha soniya vaqt oladi.</p></div></div>
+            <div class="hw-step"><div class="hw-step-num">2</div><div class="hw-step-body"><h3>🤖 AI tahlil qiladi</h3><p>Sun'iy intellekt murojaatingizni avtomatik toifalaydi va allaqachon mavjud o'xshash murojaatlar bilan bitta guruhga (klasterga) birlashtiradi — bir xil muammoni bir necha marta alohida yozishning hojati yo'q.</p></div></div>
+            <div class="hw-step"><div class="hw-step-num">3</div><div class="hw-step-body"><h3>👍 Jamiyat qo'llab-quvvatlaydi</h3><p>Xuddi shu muammoga duch kelgan boshqa foydalanuvchilar "Menda ham bor" tugmasi orqali qo'shilishi mumkin — bu muammoning qanchalik keng tarqalganini ko'rsatadi.</p></div></div>
+            <div class="hw-step"><div class="hw-step-num">4</div><div class="hw-step-body"><h3>💡 Yechim takliflari</h3><p>Foydalanuvchilar yechim g'oyalarini taklif qilishlari mumkin; AI ham dastlabki yechim variantlarini generatsiya qilib beradi.</p></div></div>
+            <div class="hw-step"><div class="hw-step-num">5</div><div class="hw-step-body"><h3>✅ Holat ochiq kuzatiladi</h3><p>Har bir murojaat "Ochiq" → "Yechim taklif qilindi" → "Hal qilindi" yoki "Yopildi" bosqichlaridan o'tadi — bu holat hammaga ochiq ko'rinadi.</p></div></div>
+            <div class="hw-step"><div class="hw-step-num">6</div><div class="hw-step-body"><h3>🌐 Ko'rish hammaga ochiq</h3><p>Ro'yxatdan o'tmasdan ham barcha murojaatlarni ko'rish mumkin. Yangi murojaat yuborish, qo'llab-quvvatlash yoki izoh qoldirish uchun bepul ro'yxatdan o'tish kerak bo'ladi.</p></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLATFORMA HAQIDA — faqat tasdiqlanadigan da'volar: package.json/README
+           tavsifi va #public-stats orqali kelayotgan JONLI raqamlar. Hech qanday
+           tashkilot/rasmiy hamkorlik da'vo qilinmaydi. -->
+      <div id="sec-about" class="section">
+        <div class="content-page">
+          <h1>Platforma haqida</h1>
+          <div class="about-mission">
+            <div class="cp-tag">Muammoni ko'r — yechimini yarat</div>
+            <p>MindHub — yoshlar boshqaradigan, sun'iy intellekt asosidagi fuqarolik tashabbuslari platformasi. Maqsad — o'quvchi va fuqarolarning kundalik hayotida duch keladigan muammolari eshitilishini osonlashtirish: bitta joyga yig'ish, avtomatik toifalash va ularning yechimga qanchalik yaqinlashganini ochiq ko'rsatish.</p>
+          </div>
+          <h2>Hozirgi holat</h2>
+          <section class="stats-strip" id="about-stats-strip">
+            <div class="stat-item"><div class="stat-num" id="about-stat-total">—</div><div class="stat-label">Jami murojaat</div></div>
+            <div class="stat-item"><div class="stat-num" id="about-stat-resolved">—</div><div class="stat-label">Hal qilingan</div></div>
+            <div class="stat-item"><div class="stat-num" id="about-stat-solutions">—</div><div class="stat-label">Yechim taklifi</div></div>
+            <div class="stat-item"><div class="stat-num" id="about-stat-places">—</div><div class="stat-label">Hudud/maktab</div></div>
+          </section>
+          <h2>Qamrov</h2>
+          <p>Platforma o'nlab yo'nalish bo'yicha murojaatlarni qabul qiladi — maktab ta'limidan tortib ekologiya, sog'liqni saqlash, transport va raqamli xizmatlargacha. To'liq ro'yxatni <a onclick="goSec('murojaat');loadClusters(true)" style="color:var(--gold-dk);cursor:pointer;text-decoration:underline">Murojaatlar</a> bo'limidagi filtrlarda ko'rishingiz mumkin.</p>
+          <h2>Hali ishlanmoqda</h2>
+          <p>MindHub faol rivojlanmoqda va hozircha barcha rejalashtirilgan imkoniyatlar tayyor emas. Yaqin rejalarda: murojaat muallifidan yakuniy natijani tasdiqlashini so'rovchi mexanizm, rahbariyat uchun kengaytirilgan boshqaruv paneli va butun mamlakat bo'yicha muammolar xaritasi bor.</p>
+        </div>
+      </div>
+
+      <!-- SAVOL-JAVOB — har bir javob koddagi haqiqiy xatti-harakatga mos;
+           tasdiqlanmagan institutsional da'vo (masalan ovoz chegarasi rasmiy
+           idora tekshiruvini ishga tushiradi) ATAYLAB qo'shilmagan. -->
+      <div id="sec-faq" class="section">
+        <div class="content-page">
+          <h1>Savol-javob</h1>
+          <div class="cp-lead">Eng ko'p so'raladigan savollarga javoblar.</div>
+          <details class="faq-item">
+            <summary>MindHub nima uchun kerak?</summary>
+            <div class="faq-a">Kundalik hayotda duch kelgan muammoni (maktab, yo'l, ekologiya va h.k.) yozib qoldirish, uni o'xshashlari bilan birlashtirib ko'lamini ko'rsatish va yechim topilishini kuzatib borish uchun.</div>
+          </details>
+          <details class="faq-item">
+            <summary>Murojaat yuborish uchun nima kerak?</summary>
+            <div class="faq-a">Bepul ro'yxatdan o'tish (bir necha soniya) kifoya. Shundan so'ng "Muammo ko'tarish" tugmasi orqali istalgan vaqtda murojaat yozishingiz mumkin.</div>
+          </details>
+          <details class="faq-item">
+            <summary>Nega ba'zi bo'limlarni ro'yxatdan o'tmasdan ko'ra olaman, ba'zilarini yo'q?</summary>
+            <div class="faq-a">Bosh sahifa, murojaatlar ro'yxati va har bir murojaat tafsiloti hammaga ochiq — hatto ro'yxatdan o'tmasdan ham ko'rish mumkin. Murojaat yuborish, qo'llab-quvvatlash, izoh qoldirish va shaxsiy kabinet kabi shaxsiy harakatlar uchun esa ro'yxatdan o'tish talab qilinadi.</div>
+          </details>
+          <details class="faq-item">
+            <summary>AI murojaatimni qanday tahlil qiladi?</summary>
+            <div class="faq-a">Sun'iy intellekt matningizni o'qib, mos yo'nalishni (toifani) belgilaydi va o'xshash murojaatlar bilan bitta guruhga birlashtiradi. Bu jarayon avtomatik bo'lgani uchun kamdan-kam holatlarda noaniqlik bo'lishi mumkin — bunday holda murojaat baribir ko'rinadi va boshqalar qo'llab-quvvatlashi mumkin.</div>
+          </details>
+          <details class="faq-item">
+            <summary>"Menda ham bor" tugmasi nima uchun kerak?</summary>
+            <div class="faq-a">Bu tugma xuddi shu muammoga duch kelgan boshqa foydalanuvchilarga o'z ovozini qo'shish imkonini beradi — muammoning ko'lami qanchalik keng ekanini ko'rsatuvchi ochiq ko'rsatkich sifatida.</div>
+          </details>
+          <details class="faq-item">
+            <summary>Murojaatim qachon "hal qilindi" deb belgilanadi?</summary>
+            <div class="faq-a">Holatni platforma rahbariyati mavjud ma'lumotlar asosida yangilab boradi. Hozircha bu jarayon murojaat muallifidan alohida tasdiq so'ramaydi — muallif tasdig'ini so'raydigan mexanizm hali ishlanmoqda.</div>
+          </details>
+          <details class="faq-item">
+            <summary>Hudud yoki maktabni ko'rsatishim shartmi?</summary>
+            <div class="faq-a">Yo'q, ixtiyoriy. Lekin ko'rsatilsa, muammoning aniq qayerda ekanini bilish va o'xshash mintaqadagi murojaatlarni topish osonlashadi.</div>
+          </details>
+          <details class="faq-item">
+            <summary>Profilimdagi qanday ma'lumotlar boshqalarga ko'rinadi?</summary>
+            <div class="faq-a">Username, ism, profil rasmi, bio, hudud va yuborgan murojaatlaringiz/statistikangiz ochiq profilingizda ko'rinadi. Email va telefon raqamingiz boshqa foydalanuvchilarga hech qachon ko'rsatilmaydi.</div>
+          </details>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -345,32 +425,33 @@
     <div class="sf-inner">
       <div class="sf-col">
         <h4>Platforma</h4>
-        <a onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">Shaxsiy kabinet</a>
+        <a onclick="goSec('home')">Bosh sahifa</a>
         <a onclick="goSec('murojaat');loadClusters(true)">Murojaatlar</a>
-        <a onclick="goSec('murojaat');loadClusters(true)">Yo'nalishlar</a>
+        <a onclick="goResolved()">Hal qilinganlar</a>
+        <a onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">Shaxsiy kabinet</a>
       </div>
       <div class="sf-col">
         <h4>Yo'nalishlar</h4>
-        <a onclick="goSec('murojaat');setFeedCategory('talim')">Ta'lim infratuzilmasi</a>
-        <a onclick="goSec('murojaat');setFeedCategory('yol-xavfsizligi')">Yo'l xavfsizligi</a>
-        <a onclick="goSec('murojaat');setFeedCategory('ekologiya')">Ekologiya va tozalik</a>
-        <a onclick="goSec('murojaat');setFeedCategory('ijtimoiy')">Ijtimoiy xizmatlar</a>
+        <!-- JS orqali to'ldiriladi (initFooterCategories, problems.js) --
+             CATEGORIES massividan, shu sabab toifa nomi o'zgarsa footer
+             avtomatik yangilanadi (ilgari bu yerda qattiq yozilgan matn
+             eskirib qolgan edi). -->
+        <div id="sf-yonalishlar-links"></div>
       </div>
       <div class="sf-col">
-        <h4>Hujjatlar</h4>
-        <a onclick="toast('Tez orada')">Foydalanish shartlari</a>
-        <a onclick="toast('Tez orada')">Maxfiylik siyosati</a>
-        <a onclick="toast('Tez orada')">Ochiqlik reytingi</a>
-      </div>
-      <div class="sf-col">
-        <h4>Aloqa</h4>
-        <a>📞 Ishonch telefoni: 1006</a>
-        <a>✉️ info@mindhub.uz</a>
+        <h4>Ma'lumot</h4>
+        <a onclick="goSec('howworks')">Qanday ishlaydi</a>
+        <a onclick="goSec('about');initAboutStats()">Platforma haqida</a>
+        <a onclick="goSec('faq')">Savol-javob</a>
       </div>
     </div>
     <div class="sf-bottom">
       <span>© 2026 MindHub — O'zbekiston Respublikasi</span>
       <span>Barcha imkoniyat toifalari uchun moslashtirilgan</span>
+      <div class="sf-bottom-legal">
+        <a onclick="toast('Tez orada')">Foydalanish shartlari</a>
+        <a onclick="toast('Tez orada')">Maxfiylik siyosati</a>
+      </div>
     </div>
   </footer>
 </div>
@@ -395,6 +476,16 @@
         <div style="font-size:28px;margin-bottom:6px">📷</div><div style="font-size:13px">Rasm yuklash uchun bosing</div>
       </div>
       <div id="subprob-img-preview"></div>
+    </div>
+    <div class="form-row">
+      <label class="form-lbl">Joylashuv <span style="color:var(--red)">*</span></label>
+      <div style="font-size:12px;color:var(--tx4);margin-bottom:6px">Muammoni hal qiluvchilar uchun eng muhim ma'lumot — u QAYERDA. GPS orqali aniqlang yoki manzilni qo'lda yozing.</div>
+      <button type="button" class="btn btn-ghost" id="subprob-geo-btn" onclick="captureSubProbLocation()" style="width:100%;justify-content:center">
+        📍 Joriy joylashuvni aniqlash
+      </button>
+      <div id="subprob-geo-status" style="font-size:12px;margin-top:6px"></div>
+      <div style="font-size:11.5px;color:var(--tx4);margin:10px 0 6px;text-align:center">— yoki —</div>
+      <textarea class="inp" id="subprob-address" placeholder="Aniq manzil: ko'cha, uy/muassasa nomi, mo'ljal..." rows="2"></textarea>
     </div>
     <div style="background:var(--gold-soft);border:1px solid var(--gold-bd);border-radius:var(--r);padding:10px 13px;font-size:12.5px;color:var(--gold-dk);margin-bottom:4px">
       🤖 Murojaatingiz AI yordamida avtomatik toifalanadi va o'xshashlari bilan birlashtiriladi.

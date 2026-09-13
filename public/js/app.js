@@ -29,12 +29,13 @@ async function doAmReg(){
   const username=(document.getElementById('am-reg-user').value||'').trim();
   const email=(document.getElementById('am-reg-email').value||'').trim();
   const password=(document.getElementById('am-reg-pass').value||'').trim();
+  const phone=(document.getElementById('am-reg-phone').value||'').trim();
   const region_id=document.getElementById('am-reg-region').value||null;
   const school_name=(document.getElementById('am-reg-school').value||'').trim();
   const err=document.getElementById('am-err'); err.classList.remove('on');
   if(!name||!username||!email||!password){err.textContent="Barcha majburiy maydonlarni to'ldiring";err.classList.add('on');return;}
   const btn=document.getElementById('am-reg-btn'); btn.disabled=true;btn.textContent='...';
-  try{ const d=await API.register({name,username,email,password,region_id,school_name}); tokSave(d.token);Tok.set(d.token);closeAuthModal();await boot(d.user); }
+  try{ const d=await API.register({name,username,email,password,phone,region_id,school_name}); tokSave(d.token);Tok.set(d.token);closeAuthModal();await boot(d.user); }
   catch(e){err.textContent=e.message;err.classList.add('on');}
   finally{btn.disabled=false;btn.textContent="Ro'yxatdan o'tish";}
 }
@@ -119,6 +120,10 @@ async function doVerifyAndReset(){
 
 /* ═══ TOPBAR ═══ */
 function syncTopbar(u){
+  document.getElementById('tb-guest-actions')?.style.setProperty('display','none');
+  document.getElementById('tb-av-wrap')?.style.setProperty('display','flex');
+  document.getElementById('lsb-logout')?.style.setProperty('display','flex');
+  document.getElementById('lsb-logout-divider')?.style.setProperty('display','block');
   const av=document.getElementById('tb-av');
   if(av){av.style.cssText=avStyle(u,30)+'border-radius:50%;';av.innerHTML=avHtml(u,30,11);}
   const nm=document.getElementById('tb-av-name'); if(nm) nm.textContent=u.name||u.username;
@@ -127,12 +132,17 @@ function syncTopbar(u){
   const sbNm=document.getElementById('sb-uname'); if(sbNm) sbNm.textContent=u.name||u.username;
   const isStaff = u.role==='admin'||u.role==='leader';
   document.getElementById('admin-lsb')?.style.setProperty('display',isStaff?'flex':'none');
-  const adminTopNav = document.getElementById('admin-topnav'); if (adminTopNav) adminTopNav.hidden = !isStaff;
+  const adminDd = document.getElementById('account-dd-admin'); if (adminDd) adminDd.style.display = isStaff ? 'block' : 'none';
 }
 
-/* ═══ BOOT ═══ */
+/* ═══ BOOT ═══
+   REDESIGN 3.0: kontent (Bosh sahifa, Murojaatlar ro'yxati/tafsiloti, ochiq
+   profil) endi mehmonlarga (kirmagan foydalanuvchilarga) ham ko'rinadi —
+   haqiqiy davlat portali kabi. Backend bu route'larni allaqachon ochiq qo'yган
+   edi (getAuth, requireAuth emas); faqat frontend har doim login talab
+   qilardi. Harakatlar (yuborish/qo'llab-quvvatlash/izoh/kabinet/sozlamalar/
+   boshqaruv) hamon requireAuth() bilan himoyalangan. */
 async function boot(initialUser){
-  document.getElementById('auth')?.remove();
   document.getElementById('app').classList.add('vis');
   window._me = initialUser || await API.me();
   syncTopbar(window._me);
@@ -140,11 +150,23 @@ async function boot(initialUser){
   WS.connect(Tok.get());
   initProblemWS();
   loadCategoryFilters();
+  initFooterCategories();
   await Promise.allSettled([loadClusters(true), loadNotifCount(), initHomepageExtras(), initFilterRail()]);
   initMurojaatScrollFeed();
   await initPushPermissionPrompt();
   // Joriy URL manziliga qarab to'g'ri bo'limni ochamiz (REDESIGN 2.0 — haqiqiy
   // sahifa manzillari). Shu manzilga qayta push qilmaslik uchun _skipNextPush.
+  _skipNextPush = true;
+  routeFromLocation();
+}
+async function bootGuest(){
+  document.getElementById('app').classList.add('vis');
+  window._me = null;
+  loadCategoryFilters();
+  initFooterCategories();
+  await Promise.allSettled([loadClusters(true), initHomepageExtras(), initFilterRail()]);
+  initMurojaatScrollFeed();
+  initTelegramWidget();
   _skipNextPush = true;
   routeFromLocation();
 }
@@ -220,6 +242,12 @@ function selectLang(code, btn, silent){
 document.addEventListener('click', e => {
   const dd = document.getElementById('ub-lang-dd');
   if (dd && dd.classList.contains('open') && !e.target.closest('.ub-lang')) dd.classList.remove('open');
+});
+function toggleAccountDD(e){ e?.stopPropagation(); document.getElementById('account-dd')?.classList.toggle('open'); }
+function closeAccountDD(){ document.getElementById('account-dd')?.classList.remove('open'); }
+document.addEventListener('click', e => {
+  const dd = document.getElementById('account-dd');
+  if (dd && dd.classList.contains('open') && !e.target.closest('.tb-av-wrap')) dd.classList.remove('open');
 });
 
 /* ═══ CHIQISH ═══ */
@@ -301,6 +329,7 @@ async function loadSettings(){
         <div class="form-row"><label class="form-lbl">Ism</label><input class="inp" id="st-name" value="${esc(u.name||'')}"></div>
         <div class="form-row"><label class="form-lbl">Bio</label><textarea class="inp" id="st-bio" rows="3">${esc(u.bio||'')}</textarea></div>
         <div class="form-row"><label class="form-lbl">Email</label><input class="inp" id="st-email" type="email" value="${esc(u.email||'')}"></div>
+        <div class="form-row"><label class="form-lbl">Telefon (ixtiyoriy)</label><input class="inp" id="st-phone" type="tel" placeholder="+998901234567" value="${esc(u.phone||'')}"></div>
         <button class="btn btn-gold" onclick="saveProfile()">Saqlash</button>
       </div>
       <div class="set-card">
@@ -324,8 +353,9 @@ async function saveProfile(){
   const name=(document.getElementById('st-name')?.value||'').trim();
   const bio=(document.getElementById('st-bio')?.value||'').trim();
   const email=(document.getElementById('st-email')?.value||'').trim();
+  const phone=(document.getElementById('st-phone')?.value||'').trim();
   if(!name){toast('Ism bo\'sh bo\'lmasin');return;}
-  try{ const u=await api('PUT','/me',{name,bio,email}); window._me={...window._me,...u}; syncTopbar(window._me); toast('Saqlandi'); }
+  try{ const u=await api('PUT','/me',{name,bio,email,phone}); window._me={...window._me,...u}; syncTopbar(window._me); toast('Saqlandi'); }
   catch(e){toast(e.message);}
 }
 async function doChpass(){
@@ -403,10 +433,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (tok) {
     Tok.set(tok);
     try { const user = await API.me(); await boot(user); }
-    catch { tokClear(); document.getElementById('auth').style.display='flex'; initTelegramWidget(); }
+    catch { tokClear(); await bootGuest(); }
   } else {
-    document.getElementById('auth').style.display = 'flex';
-    initTelegramWidget();
+    await bootGuest();
   }
   // Tortma ichidagi istalgan havola bosilganda avtomatik yopiladi (kutilgan UX)
   document.querySelector('.left-sb')?.addEventListener('click', e => {
@@ -419,7 +448,8 @@ window.showAuthModal=showAuthModal; window.closeAuthModal=closeAuthModal; window
 window.doAmLogin=doAmLogin; window.doAmReg=doAmReg; window.doSendCode=doSendCode; window.doVerifyAndReset=doVerifyAndReset;
 window.onTelegramAuth=onTelegramAuth; window.finishTgReg=finishTgReg; window.initTelegramWidget=initTelegramWidget;
 window.toggleA11y=toggleA11y; window.toggleLangDD=toggleLangDD; window.selectLang=selectLang;
-window.syncTopbar=syncTopbar; window.boot=boot; window.toggleTheme=toggleTheme; window.doLogout=doLogout;
+window.toggleAccountDD=toggleAccountDD; window.closeAccountDD=closeAccountDD;
+window.syncTopbar=syncTopbar; window.boot=boot; window.bootGuest=bootGuest; window.toggleTheme=toggleTheme; window.doLogout=doLogout;
 window.toggleSidebarDrawer=toggleSidebarDrawer; window.openSidebarDrawer=openSidebarDrawer; window.closeSidebarDrawer=closeSidebarDrawer;
 window.openUser=openUser; window.uploadAvatar=uploadAvatar; window.loadSettings=loadSettings; window.saveProfile=saveProfile; window.doChpass=doChpass;
 window.loadNotifCount=loadNotifCount; window.loadNotifs=loadNotifs; window.markNotifs=markNotifs;

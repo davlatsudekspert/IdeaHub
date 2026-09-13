@@ -17,10 +17,11 @@ export function makeQ(db) {
     uByTgId:    (tg) => get('SELECT id,username,name,email FROM users WHERE tg_id=?', tg),
     uSetTgId:   (tg_id, id) => run('UPDATE users SET tg_id=? WHERE id=?', tg_id, id),
     uSearch:    (p1, p2) => all('SELECT id,username,name,color,avatar,role FROM users WHERE lower(username) LIKE ? OR lower(name) LIKE ? LIMIT 20', p1, p2),
-    uInsert:    (id, username, name, email, pass, color, region_id, school_id) =>
-      run('INSERT INTO users(id,username,name,email,pass,color,region_id,school_id) VALUES(?,?,?,?,?,?,?,?)', id, username, name, email, pass, color, region_id || null, school_id || null),
+    uInsert:    (id, username, name, email, pass, color, region_id, school_id, phone) =>
+      run('INSERT INTO users(id,username,name,email,pass,color,region_id,school_id,phone) VALUES(?,?,?,?,?,?,?,?,?)', id, username, name, email, pass, color, region_id || null, school_id || null, phone || null),
     uExists:    (username, email) => get('SELECT id FROM users WHERE lower(username)=lower(?) OR lower(email)=lower(?)', username, email),
     uUpdProf:   (name, bio, id) => run('UPDATE users SET name=?,bio=? WHERE id=?', name, bio, id),
+    uUpdPhone:  (phone, id) => run('UPDATE users SET phone=? WHERE id=?', phone || null, id),
     uUpdEmail:  (email, id) => run('UPDATE users SET email=? WHERE id=?', email, id),
     uUpdPass:   (pass, id) => run('UPDATE users SET pass=? WHERE id=?', pass, id),
     uUpdAv:     (avatar, id) => run('UPDATE users SET avatar=? WHERE id=?', avatar, id),
@@ -41,8 +42,8 @@ export function makeQ(db) {
     categoryGet:  (id) => get('SELECT * FROM categories WHERE id=?', id),
 
     /* ── problems (murojaatlar) ── */
-    pInsert: (id, user_id, region_id, school_id, title, body, image) =>
-      run('INSERT INTO problems(id,user_id,region_id,school_id,title,body,image) VALUES(?,?,?,?,?,?,?)', id, user_id, region_id || null, school_id || null, title, body, image || null),
+    pInsert: (id, user_id, region_id, school_id, title, body, image, lat, lng, address) =>
+      run('INSERT INTO problems(id,user_id,region_id,school_id,title,body,image,lat,lng,address) VALUES(?,?,?,?,?,?,?,?,?,?)', id, user_id, region_id || null, school_id || null, title, body, image || null, lat ?? null, lng ?? null, address || null),
     pOne:    (id) => get(`SELECT p.*,u.username,u.name as uname,u.color,u.avatar,
         c.title as cluster_title, c.status as cluster_status, cat.name as category_name, cat.color as category_color, cat.icon as category_icon,
         r.name as region_name, s.name as school_name
