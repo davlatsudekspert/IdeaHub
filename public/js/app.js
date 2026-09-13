@@ -125,7 +125,9 @@ function syncTopbar(u){
   const sbAv=document.getElementById('sb-av');
   if(sbAv){sbAv.style.cssText+=avStyle(u,30)+'border-radius:50%;';sbAv.innerHTML=avHtml(u,30,11);}
   const sbNm=document.getElementById('sb-uname'); if(sbNm) sbNm.textContent=u.name||u.username;
-  document.getElementById('admin-lsb')?.style.setProperty('display',(u.role==='admin'||u.role==='leader')?'flex':'none');
+  const isStaff = u.role==='admin'||u.role==='leader';
+  document.getElementById('admin-lsb')?.style.setProperty('display',isStaff?'flex':'none');
+  const adminTopNav = document.getElementById('admin-topnav'); if (adminTopNav) adminTopNav.hidden = !isStaff;
 }
 
 /* ═══ BOOT ═══ */

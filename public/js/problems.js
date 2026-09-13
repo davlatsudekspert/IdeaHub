@@ -21,6 +21,10 @@ function loadCategoryFilters() {
     CATEGORIES.map(c => `<button class="filter-chip${_feedCategory===c.id?' active':''}" style="${_feedCategory===c.id?`background:${c.color};border-color:${c.color}`:''};color:${_feedCategory===c.id?'#fff':c.color}" onclick="setFeedCategory('${c.id}')">${c.icon} ${esc(c.name)}</button>`).join('');
 }
 function setFeedCategory(catId) { _feedCategory = catId; loadCategoryFilters(); loadClusters(true); }
+/* Bosh sahifadan (boshqa bo'lim) murojaatlar ro'yxatiga toifa bilan o'tish —
+   endi alohida sahifalar (REDESIGN 2.1), shu sabab scrollIntoView o'rniga
+   to'g'ridan-to'g'ri navigatsiya qilinadi (goSec sahifa boshiga aylantiradi). */
+function goMurojaatlar(catId) { goSec('murojaat'); setFeedCategory(catId); }
 
 /* ═══ FILTR PANELI — hudud + holat (REDESIGN.md §3.3) ═══
    Toifa filtri #category-filters'da (lenta ustida) allaqachon bor — bu yerda
@@ -75,7 +79,7 @@ async function initHomepageExtras() {
 
   const chipsEl = document.getElementById('hero-chips');
   if (chipsEl) chipsEl.innerHTML = CATEGORIES.filter(c=>c.id!=='boshqa').slice(0,5)
-    .map(c=>`<span class="hc-item" onclick="setFeedCategory('${c.id}');document.getElementById('category-filters').scrollIntoView({behavior:'smooth'})">${c.icon} ${esc(c.name)}</span>`).join('');
+    .map(c=>`<span class="hc-item" onclick="goMurojaatlar('${c.id}')">${c.icon} ${esc(c.name)}</span>`).join('');
 
   try {
     const cats = await API.publicCategories();
@@ -83,7 +87,7 @@ async function initHomepageExtras() {
     const grid = document.getElementById('yonalish-grid');
     if (grid) grid.innerHTML = CATEGORIES.map(c => {
       const cnt = byId[c.id] || 0;
-      return `<div class="yonalish-card" onclick="setFeedCategory('${c.id}');document.getElementById('category-filters').scrollIntoView({behavior:'smooth'})">
+      return `<div class="yonalish-card" onclick="goMurojaatlar('${c.id}')">
         <span class="yonalish-count${cnt?' has-items':''}">${fmtNum(cnt)}</span>
         <div class="yonalish-ico">${c.icon}</div>
         <div class="yonalish-name">${esc(c.name)}</div>
@@ -382,7 +386,7 @@ function initProblemWS() {
 /* Shikoyat (report) uchun umumiy modal core.js'da — bu yerda takror aniqlanmaydi,
    openReport('id','problem') core.js'dagi bitta unified modalni chaqiradi. */
 
-window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory; window.initHomepageExtras=initHomepageExtras;
+window.loadRegionsInto=loadRegionsInto; window.loadCategoryFilters=loadCategoryFilters; window.setFeedCategory=setFeedCategory; window.goMurojaatlar=goMurojaatlar; window.initHomepageExtras=initHomepageExtras;
 window.buildClusterCard=buildClusterCard; window.loadClusters=loadClusters; window.setMurojaatSort=setMurojaatSort; window.initMurojaatScrollFeed=initMurojaatScrollFeed;
 window.openCluster=openCluster; window.switchClusterTab=switchClusterTab; window.toggleSupport=toggleSupport; window.changeClusterStatus=changeClusterStatus;
 window.submitComment=submitComment; window.promptSolution=promptSolution; window.doGenerateSolutions=doGenerateSolutions;

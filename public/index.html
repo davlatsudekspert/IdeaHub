@@ -132,7 +132,7 @@
     <button class="tb-hamburger" onclick="toggleSidebarDrawer()" aria-label="Menyu" title="Menyu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
-    <div class="tb-logo" onclick="goSec('murojaat');loadClusters(true)">
+    <div class="tb-logo" onclick="goSec('home')">
       <div class="tb-logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
       Mind<em>Hub</em>
     </div>
@@ -155,6 +155,18 @@
       </div>
     </div>
   </header>
+
+  <!-- ASOSIY NAVIGATSIYA — desktopda doim ko'rinadi (bo'limlarga yetish uchun
+     pastga aylantirish yoki tortmani ochish shart emas); tor ekranda
+     yashiringan, o'rniga hamburger tortmasi ishlatiladi. -->
+  <nav class="top-nav">
+    <button class="top-nav-item active" data-sec="home" onclick="goSec('home')">Bosh sahifa</button>
+    <button class="top-nav-item" data-sec="murojaat" onclick="goSec('murojaat');loadClusters(true)">Murojaatlar</button>
+    <button class="top-nav-item" data-sec="notifs" onclick="requireAuth(()=>{goSec('notifs');loadNotifs();markNotifs();})">Bildirishnomalar</button>
+    <button class="top-nav-item" data-sec="user" onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})">Shaxsiy kabinet</button>
+    <button class="top-nav-item" data-sec="settings" onclick="goSec('settings');loadSettings()">Sozlamalar</button>
+    <button class="top-nav-item" id="admin-topnav" data-sec="admin" onclick="goSec('admin');loadAdmin()" hidden>Boshqaruv paneli</button>
+  </nav>
 
   <!-- MOBILE SEARCH BAR -->
   <div id="mobile-search-bar">
@@ -180,7 +192,8 @@
             <div><div class="lsb-uname" id="sb-uname">Mehmon</div></div>
           </div>
           <div class="lsb-divider"></div>
-          <button class="lsb-btn active" data-sec="murojaat" onclick="goSec('murojaat');loadClusters(true)"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Bosh sahifa <span style="margin-left:auto;font-size:9px;background:var(--gold-soft);color:var(--gold-dk);padding:1px 6px;border-radius:8px;font-weight:700">AI</span></button>
+          <button class="lsb-btn active" data-sec="home" onclick="goSec('home')"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Bosh sahifa</button>
+          <button class="lsb-btn" data-sec="murojaat" onclick="goSec('murojaat');loadClusters(true)"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Murojaatlar <span style="margin-left:auto;font-size:9px;background:var(--gold-soft);color:var(--gold-dk);padding:1px 6px;border-radius:8px;font-weight:700">AI</span></button>
           <button class="lsb-btn" data-sec="notifs" onclick="goSec('notifs');loadNotifs();markNotifs()"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></span>Bildirishnomalar<span class="badge" id="notif-badge-lsb" style="display:none;margin-left:auto"></span></button>
           <button class="lsb-btn" data-sec="user" onclick="requireAuth(()=>{goSec('user');openUser(window._me?.id)})"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Shaxsiy kabinet</button>
           <button class="lsb-btn" data-sec="settings" onclick="goSec('settings');loadSettings()"><span class="lsb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>Sozlamalar</button>
@@ -193,9 +206,13 @@
 
     <!-- FEED AREA -->
     <div id="feed-area">
-      <!-- BOSH SAHIFA = MUROJAAT OQIMI (Murojaat -> AI -> klaster -> yechim). Umumiy post/jamoa
-           tizimi butunlay olib tashlandi (REDESIGN.md) — endi bitta kontent turi bor. -->
-      <div id="sec-murojaat" class="section active">
+      <!-- BOSH SAHIFA — qisqa, marketing/umumiy ko'rinish (hero, statistika,
+           yo'nalishlar, hududlar, qanday ishlaydi). To'liq murojaatlar ro'yxati
+           endi alohida sahifada (#sec-murojaat, /murojaatlar) — foydalanuvchi
+           talabiga ko'ra ("pastga qarab ketish kk emas, tepada bo'limlar
+           bo'lsin"): asosiy bo'limlar endi navigatsiyadan bir bosishda
+           ochiladi, uzun bitta sahifani pastga aylantirish shart emas. -->
+      <div id="sec-home" class="section active">
         <!-- ═══ HERO (REDESIGN.md §3.2.1) ═══ -->
         <section class="hero-band">
           <div class="hero-inner">
@@ -227,11 +244,11 @@
         <!-- ═══ YANGI / ENG KO'P QO'LLAB-QUVVATLANGAN (§3.2.4) ═══ -->
         <div class="two-col-block">
           <div class="two-col">
-            <div class="two-col-hd"><h3>Yangi murojaatlar</h3><a onclick="setMurojaatSort('new');document.getElementById('murojaat-feed-cnt').scrollIntoView({behavior:'smooth'})">Barchasi →</a></div>
+            <div class="two-col-hd"><h3>Yangi murojaatlar</h3><a onclick="goSec('murojaat');setMurojaatSort('new')">Barchasi →</a></div>
             <div class="two-col-list" id="two-col-new"></div>
           </div>
           <div class="two-col">
-            <div class="two-col-hd"><h3>Eng ko'p qo'llab-quvvatlangan</h3><a onclick="setMurojaatSort('hot');document.getElementById('murojaat-feed-cnt').scrollIntoView({behavior:'smooth'})">Barchasi →</a></div>
+            <div class="two-col-hd"><h3>Eng ko'p qo'llab-quvvatlangan</h3><a onclick="goSec('murojaat');setMurojaatSort('hot')">Barchasi →</a></div>
             <div class="two-col-list" id="two-col-hot"></div>
           </div>
         </div>
@@ -258,12 +275,17 @@
           <a href="https://openbudget.uz" target="_blank" rel="noopener">openbudget.uz</a>
         </div>
 
-        <div class="section-hd" style="margin-top:8px"><h2>Barcha murojaatlar</h2></div>
+        <div style="text-align:center;margin-top:28px">
+          <button class="btn btn-gold" style="padding:13px 36px;font-size:14px" onclick="goSec('murojaat');loadClusters(true)">Barcha murojaatlarni ko'rish →</button>
+        </div>
+      </div>
 
-        <!-- FILTR PANELI (REDESIGN.md §3.3) — hudud/holat. Avval doimiy o'ng
-             panelda edi, endi bitta ustunli kontentga ko'ra gorizontal panel
-             sifatida shu yerga ko'chirildi (elementlar ID'lari o'zgarishsiz —
-             JS mantig'i shu bilan butunlay qayta ishlatiladi). Toifa filtri
+      <!-- MUROJAATLAR RO'YXATI — alohida sahifa (/murojaatlar): filtr, saralash,
+           toifa va to'liq oqim. Bosh sahifadan ajratilgan (REDESIGN 2.1). -->
+      <div id="sec-murojaat" class="section">
+        <div class="section-hd" style="margin-top:0"><h2>Murojaatlar</h2></div>
+
+        <!-- FILTR PANELI (REDESIGN.md §3.3) — hudud/holat. Toifa filtri
              pastdagi #category-filters'da, takrorlanmaydi. -->
         <div class="filter-bar">
           <div class="filter-bar-group">
@@ -438,7 +460,7 @@
 
 <!-- MOBILE BOTTOM NAV -->
 <nav id="bottom-nav" style="display:none">
-  <button class="bn-item active" id="bn-home" onclick="goSec('murojaat');loadClusters(true);setBnActive('bn-home')">
+  <button class="bn-item active" id="bn-home" onclick="goSec('home');setBnActive('bn-home')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span>Bosh</span>
   </button>

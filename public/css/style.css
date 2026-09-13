@@ -771,9 +771,28 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
   display:flex;align-items:center;gap:10px;padding:0 18px;
   position:sticky;top:0;z-index:200;box-shadow:0 1px 0 var(--border);flex-shrink:0;
 }
-.tb-hamburger{width:36px;height:36px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;color:var(--tx2);flex-shrink:0;transition:all .15s;}
+/* Hamburger faqat tor ekranda (top-nav ko'rinmay qolganda) kerak — kengroq
+   ekranda bo'limlar allaqachon .top-nav'da doim ko'rinib turadi. */
+.tb-hamburger{width:36px;height:36px;border-radius:var(--r);display:none;align-items:center;justify-content:center;color:var(--tx2);flex-shrink:0;transition:all .15s;}
 .tb-hamburger:hover{background:var(--bg2);color:var(--tx1);}
 .tb-hamburger svg{width:20px!important;height:20px!important;}
+@media(max-width:900px){ .tb-hamburger{display:flex;} }
+
+/* ASOSIY NAVIGATSIYA — bo'limlar doim tepada, pastga aylantirish yoki
+   tortmani ochish shart emas (REDESIGN 2.1). Faqat kengroq ekranda; tor
+   ekranda o'rniga hamburger tortmasi ishlatiladi (yuqoridagi qoidaga qarang). */
+.top-nav{
+  display:flex;align-items:center;gap:2px;background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 18px;height:46px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;
+}
+.top-nav::-webkit-scrollbar{display:none;}
+.top-nav-item{
+  flex-shrink:0;padding:9px 15px;border-radius:999px;font-size:13px;font-weight:600;color:var(--tx3);
+  transition:all .15s;white-space:nowrap;background:none;border:none;cursor:pointer;
+}
+.top-nav-item:hover{background:var(--bg2);color:var(--tx1);}
+.top-nav-item.active{background:var(--gold-soft);color:var(--gold-dk);}
+@media(max-width:900px){ .top-nav{display:none;} }
 .tb-logo{display:flex;align-items:center;gap:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:var(--tx1);cursor:pointer;}
 .tb-logo:hover{opacity:.8;}
 .tb-logo-mark{width:32px;height:32px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:box-shadow .2s;}
@@ -808,7 +827,7 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
    doimiy o'ng panel) olib tashlandi. Endi bitta markaziy ustun — sayt an'anaviy
    ko'p sahifali kontent-sayt kabi his qilinishi uchun (foydalanuvchi so'roviga
    ko'ra). Chap panel pastda alohida — endi hamburger orqali ochiladigan tortma. */
-#layout{max-width:880px;margin:0 auto;width:100%;padding:18px;flex:1;min-height:0;}
+#layout{max-width:1240px;margin:0 auto;width:100%;padding:18px;flex:1;min-height:0;}
 
 /* CHAP PANEL — endi doimiy ustun emas, hamburger bilan ochiladigan overlay tortma */
 .left-sb{

@@ -93,10 +93,10 @@ const STATUS_LABEL = { open:"Ochiq", solution_proposed:"Yechim taklif qilindi", 
    har qanday noma'lum yo'l index.html'ga tushadi, shu yerdagi JS esa
    joriy location.pathname'ni o'qib to'g'ri bo'limni ochadi. */
 const SECTION_PATHS = {
-  murojaat: '/', notifs: '/bildirishnomalar', user: '/kabinet',
+  home: '/', murojaat: '/murojaatlar', notifs: '/bildirishnomalar', user: '/kabinet',
   settings: '/sozlamalar', admin: '/boshqaruv', search: '/qidiruv', cluster: '/murojaat',
 };
-let _curSec = 'murojaat';
+let _curSec = 'home';
 let _skipNextPush = false;
 function curSec() { return _curSec; }
 function goSec(id) {
@@ -104,6 +104,7 @@ function goSec(id) {
   pauseAllVideos();
   document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === 'sec-'+id));
   document.querySelectorAll('.lsb-btn[data-sec]').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
+  document.querySelectorAll('.top-nav-item[data-sec]').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
   // Close mobile search bar when leaving search section
   if (id !== 'search') { const mb = document.getElementById('mobile-search-bar'); if (mb) mb.classList.remove('open'); }
   window.scrollTo(0,0);
@@ -124,13 +125,14 @@ window.addEventListener('popstate', () => { _skipNextPush = true; routeFromLocat
 function routeFromLocation() {
   const parts = location.pathname.split('/').filter(Boolean);
   if (parts[0] === 'murojaat' && parts[1]) { openCluster(parts[1]); return; }
+  if (parts[0] === 'murojaatlar') { goSec('murojaat'); loadClusters(true); return; }
   if (parts[0] === 'foydalanuvchi' && parts[1]) { goSec('user'); openUser(decodeURIComponent(parts[1])); return; }
   if (parts[0] === 'kabinet') { if (window._me) { goSec('user'); openUser(window._me.id); } return; }
   if (parts[0] === 'bildirishnomalar') { if (window._me) { goSec('notifs'); loadNotifs(); markNotifs(); } return; }
   if (parts[0] === 'sozlamalar') { if (window._me) { goSec('settings'); loadSettings(); } return; }
   if (parts[0] === 'boshqaruv') { if (window._me) { goSec('admin'); loadAdmin(); } return; }
   if (parts[0] === 'qidiruv') { goSec('search'); return; }
-  goSec('murojaat'); loadClusters(true);
+  goSec('home');
 }
 
 /* ═══ TOKEN ═══ */
