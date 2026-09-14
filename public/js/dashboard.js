@@ -64,7 +64,7 @@ function switchAdminTab(tab) { _adminTab = tab; if (window._adminData) { loadAdm
 function renderAdminTabContent(d) {
   const el = document.getElementById('admin-tab-content'); if (!el) return;
   if (_adminTab === 'users') {
-    el.innerHTML = `<div class="set-card" style="padding:0">
+    el.innerHTML = `<div class="set-card" style="padding:6px">
       ${d.users.map(u => `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">
         <div class="av" style="${avStyle(u,36)};border-radius:50%;font-size:12px;flex-shrink:0">${avHtml(u,36,12)}</div>
@@ -86,7 +86,7 @@ function renderAdminTabContent(d) {
       </div>`).join('')}
     </div>`;
   } else {
-    el.innerHTML = `<div class="set-card" style="padding:0">
+    el.innerHTML = `<div class="set-card" style="padding:6px">
       ${d.reports.length ? d.reports.map(r => `
       <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">${esc(r.reason)}</div>

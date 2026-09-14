@@ -1371,8 +1371,11 @@ body { overflow-x: hidden; }
   .tb-search    { display: none; }
   .tb-right     { gap: 2px; margin-left: auto; }
   .tb-ico, .theme-btn { width: 36px; height: 36px; }
-  .tb-post-btn  { width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 0; }
-  .tb-post-btn svg { width: 16px !important; height: 16px !important; }
+  /* Mobilda pastki navigatsiyaning o'zida bn-post ("+") allaqachon bor
+     (mehmon/hisobli — farqsiz, xuddi shu openSubmitProblem() harakatini
+     bajaradi) — shuning uchun topbardagi nusxasi bu yerda ortiqcha,
+     guest/logged-in holatidan qat'i nazar butunlay yashiriladi. */
+  .tb-post-btn  { display: none !important; }
   .tb-av-wrap   { padding: 4px; border-radius: 50%; }
   .tb-av-wrap .tb-av-info { display: none; }
   /* Tor ekranda ikkala mehmon tugmasiga joy yo'q — Ro'yxat kirish
