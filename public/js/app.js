@@ -122,6 +122,7 @@ async function doVerifyAndReset(){
 function syncTopbar(u){
   document.getElementById('tb-guest-actions')?.style.setProperty('display','none');
   document.getElementById('tb-av-wrap')?.style.setProperty('display','flex');
+  document.getElementById('tb-post-btn')?.style.setProperty('display','inline-flex');
   document.getElementById('lsb-logout')?.style.setProperty('display','flex');
   document.getElementById('lsb-logout-divider')?.style.setProperty('display','block');
   const av=document.getElementById('tb-av');

@@ -129,7 +129,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         <span class="tb-notif-dot" id="notif-dot"></span>
       </button>
-      <button class="tb-post-btn" onclick="requireAuth(()=>openSubmitProblem())">
+      <!-- Mehmonga ko'rinmaydi — bosilsa baribir Kirish oynasini ochadi,
+           shuning uchun Kirish/Ro'yxatdan o'tish yonida ortiqcha/chalg'ituvchi
+           edi. Faqat hisobga kirilgach (syncTopbar) ko'rinadi. -->
+      <button class="tb-post-btn" id="tb-post-btn" onclick="requireAuth(()=>openSubmitProblem())" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Muammo ko'tarish
       </button>
