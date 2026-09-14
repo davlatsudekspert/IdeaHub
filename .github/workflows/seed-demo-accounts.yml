@@ -1,0 +1,64 @@
+name: Demo hisoblar yaratish
+
+# Qo'lda ishga tushiriladi — admin/rahbar/oddiy foydalanuvchi
+# rollarini sinash uchun 3 ta demo hisob (demo_admin, demo_rahbar,
+# demo_user) yaratadi va kerakli rollarni belgilaydi. Parol repo
+# tarixida saqlanmasligi uchun ishga tushirish paytida input sifatida
+# beriladi (log'da ::add-mask:: bilan yashiriladi).
+on:
+  workflow_dispatch:
+    inputs:
+      password:
+        description: "Barcha demo hisoblar uchun parol (kamida 6 belgi)"
+        required: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    environment: CLOUDFLARE_API_TOKEN
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: Node o'rnatish
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bog'liqliklarni o'rnatish
+        run: npm ci
+
+      - name: Parolni log'dan yashirish
+        run: echo "::add-mask::${{ inputs.password }}"
+
+      - name: 3 ta demo hisobni ro'yxatdan o'tkazish
+        env:
+          PASS: ${{ inputs.password }}
+        run: |
+          set -e
+          declare -A NAMES=( [demo_admin]="Demo Admin" [demo_rahbar]="Demo Rahbar" [demo_user]="Demo Foydalanuvchi" )
+          for u in demo_admin demo_rahbar demo_user; do
+            resp=$(curl -sS -X POST https://mindhub.davlatsudekspert.workers.dev/api/auth/register \
+              -H "Content-Type: application/json" \
+              -d "{\"username\":\"$u\",\"password\":\"$PASS\",\"name\":\"${NAMES[$u]}\",\"email\":\"$u@mindhub.test\"}")
+            err=$(echo "$resp" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("error",""))' 2>/dev/null || echo "")
+            if [ -n "$err" ]; then
+              echo "$u: $err (allaqachon mavjud bo'lishi mumkin — davom etamiz)"
+            else
+              echo "$u: yaratildi"
+            fi
+          done
+
+      - name: Rollarni belgilash (admin, rahbar)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: |
+            d1 execute mindhub-db --remote --command "UPDATE users SET role='admin' WHERE username='demo_admin'"
+            d1 execute mindhub-db --remote --command "UPDATE users SET role='leader' WHERE username='demo_rahbar'"
+
+      - name: Natijani tekshirish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: d1 execute mindhub-db --remote --command "SELECT username, role FROM users WHERE username IN ('demo_admin','demo_rahbar','demo_user')"
