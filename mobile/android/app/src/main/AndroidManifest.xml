@@ -39,7 +39,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Murojaat yuborishda "Joriy joylashuvni aniqlash" (GPS) funksiyasi
-         uchun -- veb-ilovadagi navigator.geolocation so'rovini WebView orqali
+         uchun: veb-ilovadagi navigator.geolocation so'rovini WebView orqali
          ishlatish uchun zarur. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
