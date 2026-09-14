@@ -13,6 +13,9 @@ on:
       - '.github/workflows/build-android.yml'
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -53,3 +56,19 @@ jobs:
           name: mindhub-debug-apk
           path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # Actions artifact'lar Azure Blob Storage'da saqlanadi va ba'zi tarmoq
+      # siyosatlarida bloklangan bo'lishi mumkin. Shuning uchun APK'ni GitHub
+      # Release sifatida ham e'lon qilamiz — release asset'lar
+      # objects.githubusercontent.com orqali, kengroq ochiq manzilda beriladi.
+      - name: APK'ni "android-latest" release sifatida e'lon qilish
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete android-latest --yes --cleanup-tag || true
+          gh release create android-latest \
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk \
+            --title "MindHub Android (debug APK) — avtomatik" \
+            --notes "Eng so'nggi avtomatik tuzilgan debug APK. Commit: ${{ github.sha }}" \
+            --target "${{ github.sha }}"
