@@ -14,7 +14,18 @@ darhol ilovada ham ko'rinadi.
 `mobile/`ga tegishli har qanday o'zgarish `main` branch'ga tushganda
 `.github/workflows/build-android.yml` avtomatik ishga tushadi va
 GitHub'ning o'zida (Android SDK bilan) haqiqiy `.apk` faylini yig'adi.
-Natijani olish:
+Natijani olishning ikki yo'li bor:
+
+**Doimiy havola (eng qulay):** eng so'nggi tuzilgan APK har doim shu
+yerda — hech qanday qidirish shart emas:
+
+> **https://github.com/davlatsudekspert/IdeaHub/releases/download/android-latest/app-debug.apk**
+
+(Bu — `android-latest` nomli Release, har safar yangi build muvaffaqiyatli
+tugaganda avtomatik yangilanadi: eskisi o'chirilib, yangisi joylashtiriladi.)
+
+**Yoki Actions orqali** (agar build tarixini yoki boshqa branch'ning
+natijasini ko'rish kerak bo'lsa):
 
 1. Repozitoriyning **Actions** bo'limiga o'ting.
 2. **"Android APK yig'ish"** ishga tushuvini oching (oxirgi muvaffaqiyatli).
