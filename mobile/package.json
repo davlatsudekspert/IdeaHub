@@ -1,0 +1,17 @@
+{
+  "name": "mindhub-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MindHub uchun Android ilova qobig'i (Capacitor) — haqiqiy veb-ilovani (mindhub.davlatsudekspert.workers.dev) WebView orqali o'raydi.",
+  "scripts": {
+    "sync": "cap sync android",
+    "build:apk": "cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

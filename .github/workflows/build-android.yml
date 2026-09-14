@@ -1,0 +1,55 @@
+name: Android APK yig'ish
+
+# mobile/ papkasiga tegishli o'zgarish main'ga tushganda avtomatik ishga
+# tushadi. Bu yerda (GitHub'ning ubuntu-latest runner'ida) Android SDK
+# tayyor bo'lgani uchun .apk fayl haqiqatan ham shu yerda tuziladi —
+# rivojlantirish muhitida (bu loyihaning asosiy sandbox'ida) Android SDK
+# yo'q va uni yuklab olish tarmoq siyosati bilan bloklangan.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: Node o'rnatish
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: JDK o'rnatish
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK o'rnatish
+        uses: android-actions/setup-android@v3
+
+      - name: Bog'liqliklarni o'rnatish
+        run: npm ci
+
+      - name: Capacitor android loyihasini sinxronlash
+        run: npx cap sync android
+
+      - name: Debug APK yig'ish
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: APK'ni artifact sifatida yuklash
+        uses: actions/upload-artifact@v4
+        with:
+          name: mindhub-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

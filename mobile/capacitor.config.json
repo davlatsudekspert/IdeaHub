@@ -1,0 +1,12 @@
+{
+  "appId": "uz.mindhub.app",
+  "appName": "MindHub",
+  "webDir": "www",
+  "server": {
+    "url": "https://mindhub.davlatsudekspert.workers.dev",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#0A2342"
+  }
+}

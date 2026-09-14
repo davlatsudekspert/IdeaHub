@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MindHub</string>
+    <string name="title_activity_main">MindHub</string>
+    <string name="package_name">uz.mindhub.app</string>
+    <string name="custom_url_scheme">uz.mindhub.app</string>
+</resources>
