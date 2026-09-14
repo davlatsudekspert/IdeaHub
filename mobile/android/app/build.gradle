@@ -16,8 +16,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // "release" build turi uchun imzo — CI'da (build-android.yml) har bir
+    // yig'ishda vaqtinchalik generatsiya qilinadigan keystore orqali
+    // beriladi (RELEASE_* environment o'zgaruvchilari). Play Store'ga
+    // chiqarish uchun BU imzo yaramaydi — u doimiy, maxfiy saqlanadigan
+    // kalit talab qiladi (har build'da boshqa kalit bo'lsa, Play Store
+    // keyingi yangilanishni "boshqa dastur" deb rad etadi). Bu yerdagi
+    // maqsad — faqat "debug" cheklovlarisiz, to'g'ridan-to'g'ri qo'lda
+    // o'rnatish uchun APK.
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("RELEASE_KEYSTORE_PATH") ?: "release.keystore")
+            storePassword System.getenv("RELEASE_KEYSTORE_PASSWORD") ?: ""
+            keyAlias System.getenv("RELEASE_KEY_ALIAS") ?: "mindhub"
+            keyPassword System.getenv("RELEASE_KEY_PASSWORD") ?: ""
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

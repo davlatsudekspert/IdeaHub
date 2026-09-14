@@ -50,25 +50,51 @@ jobs:
         working-directory: mobile/android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: APK'ni artifact sifatida yuklash
+      # Play Store'ga chiqarish uchun emas (u doimiy kalit talab qiladi) —
+      # faqat "debug" belgisi/cheklovlarisiz, to'g'ridan-to'g'ri o'rnatish
+      # uchun "to'liq" (release) APK. Har bir yig'ishda vaqtinchalik,
+      # bir martalik keystore generatsiya qilinadi (hech qayerda
+      # saqlanmaydi, faqat shu run ichida ishlatiladi).
+      - name: Release uchun vaqtinchalik keystore yaratish
+        working-directory: mobile/android/app
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ github.run_id }}-mindhub-release
+          RELEASE_KEY_PASSWORD: ${{ github.run_id }}-mindhub-release
+        run: |
+          keytool -genkeypair -v -keystore release.keystore -alias mindhub \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$RELEASE_KEYSTORE_PASSWORD" -keypass "$RELEASE_KEY_PASSWORD" \
+            -dname "CN=MindHub, OU=MindHub, O=MindHub, L=Tashkent, ST=Tashkent, C=UZ"
+
+      - name: Release APK yig'ish
+        working-directory: mobile/android
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ github.run_id }}-mindhub-release
+          RELEASE_KEY_PASSWORD: ${{ github.run_id }}-mindhub-release
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: APK'larni artifact sifatida yuklash
         uses: actions/upload-artifact@v4
         with:
-          name: mindhub-debug-apk
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: mindhub-apk
+          path: |
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
       # Actions artifact'lar Azure Blob Storage'da saqlanadi va ba'zi tarmoq
-      # siyosatlarida bloklangan bo'lishi mumkin. Shuning uchun APK'ni GitHub
-      # Release sifatida ham e'lon qilamiz — release asset'lar
+      # siyosatlarida bloklangan bo'lishi mumkin. Shuning uchun APK'larni
+      # GitHub Release sifatida ham e'lon qilamiz — release asset'lar
       # objects.githubusercontent.com orqali, kengroq ochiq manzilda beriladi.
-      - name: APK'ni "android-latest" release sifatida e'lon qilish
+      - name: APK'larni "android-latest" release sifatida e'lon qilish
         working-directory: .
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete android-latest --yes --cleanup-tag || true
           gh release create android-latest \
+            mobile/android/app/build/outputs/apk/release/app-release.apk \
             mobile/android/app/build/outputs/apk/debug/app-debug.apk \
-            --title "MindHub Android (debug APK) — avtomatik" \
-            --notes "Eng so'nggi avtomatik tuzilgan debug APK. Commit: ${{ github.sha }}" \
+            --title "MindHub Android — avtomatik" \
+            --notes "Eng so'nggi avtomatik tuzilgan APK'lar. app-release.apk — asosiy (debug belgisiz), app-debug.apk — sinov nusxasi. Commit: ${{ github.sha }}" \
             --target "${{ github.sha }}"

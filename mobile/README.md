@@ -16,21 +16,28 @@ darhol ilovada ham ko'rinadi.
 GitHub'ning o'zida (Android SDK bilan) haqiqiy `.apk` faylini yig'adi.
 Natijani olishning ikki yo'li bor:
 
-**Doimiy havola (eng qulay):** eng so'nggi tuzilgan APK har doim shu
+**Doimiy havola (eng qulay):** eng so'nggi tuzilgan APK'lar har doim shu
 yerda — hech qanday qidirish shart emas:
 
-> **https://github.com/davlatsudekspert/IdeaHub/releases/download/android-latest/app-debug.apk**
+> **Asosiy (tavsiya etiladi):** https://github.com/davlatsudekspert/IdeaHub/releases/download/android-latest/app-release.apk
+>
+> Sinov nusxasi (debug): https://github.com/davlatsudekspert/IdeaHub/releases/download/android-latest/app-debug.apk
 
 (Bu — `android-latest` nomli Release, har safar yangi build muvaffaqiyatli
 tugaganda avtomatik yangilanadi: eskisi o'chirilib, yangisi joylashtiriladi.)
+
+`app-release.apk` — "debug" cheklovlarisiz, oddiy foydalanish uchun
+mo'ljallangan asosiy nusxa (lekin Play Store uchun emas — pastga
+qarang). `app-debug.apk` — Android Studio'ning standart debug-kaliti
+bilan imzolangan sinov nusxasi.
 
 **Yoki Actions orqali** (agar build tarixini yoki boshqa branch'ning
 natijasini ko'rish kerak bo'lsa):
 
 1. Repozitoriyning **Actions** bo'limiga o'ting.
 2. **"Android APK yig'ish"** ishga tushuvini oching (oxirgi muvaffaqiyatli).
-3. Pastdagi **Artifacts** qismidan `mindhub-debug-apk`ni yuklab oling —
-   ichida `app-debug.apk` bor.
+3. Pastdagi **Artifacts** qismidan `mindhub-apk`ni yuklab oling — ichida
+   ikkalasi ham bor.
 
 Qo'lda ham ishga tushirish mumkin: Actions → "Android APK yig'ish" →
 **Run workflow**.
@@ -45,20 +52,42 @@ cd mobile
 npm install
 npx cap sync android
 cd android
-./gradlew assembleDebug
+./gradlew assembleDebug    # yoki: ./gradlew assembleRelease
 ```
 
 Tayyor fayl: `mobile/android/app/build/outputs/apk/debug/app-debug.apk`
+(`assembleRelease` uchun — o'sha papkaning `release/` versiyasi, lekin
+bu holda o'zingiz `RELEASE_KEYSTORE_PASSWORD`/`RELEASE_KEY_PASSWORD`
+environment o'zgaruvchilarini va `mobile/android/app/release.keystore`
+faylini o'zingiz tayyorlashingiz kerak bo'ladi — CI'da bu avtomatik,
+vaqtinchalik generatsiya qilinadi.)
 
 Yoki `android/` papkasini to'g'ridan-to'g'ri Android Studio'da oching
 (**Open** → `mobile/android`) va **Build → Build APK(s)** ni bosing.
 
-> **Eslatma:** yuqoridagi ikkala yo'l ham hozircha faqat *debug* (sinov)
-> APK yaratadi — imzosi test-kalit bilan, shuning uchun faqat "noma'lum
-> manbalardan o'rnatish"ga ruxsat berib telefoningizga o'rnatish mumkin,
-> Google Play'ga yuklab bo'lmaydi. Play Store'ga chiqarish uchun alohida
-> *release* imzo kaliti yaratish va `android/app/build.gradle`'da
-> signing config sozlash kerak bo'ladi — bu keyingi qadam.
+### "Noma'lum manbalardan o'rnatish" — nega baribir kerak?
+
+`app-release.apk` "debug" emas, lekin bu Google Play orqali emas,
+to'g'ridan-to'g'ri fayldan o'rnatilayotgani uchun Android baribir bir
+martalik ruxsat so'raydi (odatda "Ushbu manbadan o'rnatishga ruxsat
+berilsin?" oynasi; Xiaomi/MIUI qurilmalarida "Maxsus ruxsatlar" ostida
+alohida yoqish talab qilinishi mumkin). **Bu — Android'ning o'zining
+xavfsizlik qoidasi, "debug" yoki "release" ekanidan qat'i nazar HAR
+QANDAY Play Store'dan tashqarida tarqatilgan APK uchun amal qiladi** —
+buni faylning o'zi yoki uni qanday yig'ishimiz orqali chetlab
+o'tolmaymiz.
+
+Buni butunlay yo'qotishning yagona yo'li — ilovani **Google Play
+Store**'ga chiqarish (u yerdan o'rnatilgan ilovalar avtomatik ishonchli
+hisoblanadi). Bu esa alohida narsalarni talab qiladi: sizning o'zingizning
+Google Play Console hisobingiz (bir martalik $25 ro'yxatdan o'tish to'lovi,
+sizning to'lov kartangiz/hisobingiz bilan), doimiy saqlanadigan release
+imzo kaliti (bir marta yaratilib, HAR BIR keyingi yangilanishda bir xil
+bo'lishi shart) va Google'ning ko'rib chiqish jarayonidan o'tish. Bularning
+hech birini men sizning hisobingizsiz/to'lovingizsiz o'zim qila olmayman —
+lekin xohlasangiz, kerakli hamma narsani (signed *release* AAB, do'kon
+sahifasi matni va h.k.) tayyorlab, faqat yuklashning o'zini sizga
+qoldirishim mumkin.
 
 ## Tuzilishi
 
