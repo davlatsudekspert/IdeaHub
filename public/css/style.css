@@ -205,21 +205,10 @@ body {
   -webkit-font-smoothing:antialiased;
   transition:background .25s,color .25s;
   overflow-x:hidden;
-  padding-top:4px;
 }
 
-/* ═══ BAYROQ LENTASI — sahifaning eng yuqori chizig'i, doim ko'rinadi ═══ */
-.flag-ribbon {
-  position:fixed; top:0; left:0; right:0; height:4px; z-index:100000;
-  background:linear-gradient(to right,
-    #0099B5 0% 30%,
-    #CE1126 30% 35%,
-    #FFFFFF 35% 65%,
-    #CE1126 65% 70%,
-    #1EB53A 70% 100%);
-  pointer-events:none;
-}
-/* Foydalanuvchi talabiga ko'ra oy-yulduz filigran (va hero-band'dagi mos dekoratsiya)
+/* Foydalanuvchi talabiga ko'ra bayroq lentasi (sahifa eng yuqorisidagi 4px
+   chiziq) va oy-yulduz filigran (va hero-band'dagi mos dekoratsiya)
    butunlay olib tashlandi — fon endi hech qanday bezaksiz, faqat bitta tekis rang. */
 a { text-decoration:none; color:inherit; }
 img { display:block; max-width:100%; }
@@ -872,6 +861,7 @@ button svg { width:16px !important; height:16px !important; flex-shrink:0; }
 .lsb-uname{font-size:13px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:var(--tx1);}
 .lsb-ukrm{font-size:11px;color:var(--gold);margin-top:1px;}
 .lsb-divider{height:1px;background:var(--border);margin:2px 0;}
+.lsb-foot{margin-top:auto;padding:14px 13px 6px;font-size:11px;color:var(--tx4);text-align:center;}
 .com-lsb{display:flex;align-items:center;gap:8px;padding:7px 13px;cursor:pointer;transition:all .14s;font-size:13px;color:var(--tx2);background:none;border:none;width:100%;text-align:left;}
 .com-lsb:hover{background:var(--bg2);color:var(--tx1);}
 .com-lsb-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
@@ -1315,7 +1305,6 @@ html[data-a11y="on"]{ zoom:1.28; }
   --gold:#000000; --gold-lt:#333333; --gold-dk:#000000; --gold-100:#F2F2F2; --gold-soft:#F2F2F2; --gold-bd:#000000;
   --navy-900:#000000; --navy-800:#000000; --navy-700:#000000; --navy-500:#000000;
 }
-[data-a11y="on"] .flag-ribbon,
 [data-a11y="on"] body::before,
 [data-a11y="on"] .auth-left::before,
 [data-a11y="on"] .auth-left::after,
@@ -1361,17 +1350,16 @@ body { overflow-x: hidden; }
 @media (max-width: 600px) {
 
   /* ── Utility bar ham mobilda fixed bo'lishi kerak — aks holda topbar
-     "muallaq" qoladi va skroll qilinganda tepada bo'sh joy qoladi.
-     top:4px — bayroq lentasi (4px, body{padding-top:4px} bilan mos) ostida. ── */
+     "muallaq" qoladi va skroll qilinganda tepada bo'sh joy qoladi. ── */
   .utility-bar {
-    position: fixed; top: 4px; left: 0; right: 0; z-index: 301;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 301;
     height: 32px; font-size: 11px; padding: 0 10px;
   }
 
-  /* ── Fixed Topbar (bayroq + utility bar balandligicha pastroqda: 4+32=36px) ── */
+  /* ── Fixed Topbar (utility bar balandligicha pastroqda: 32px) ── */
   #topbar {
     position: fixed;
-    top: 36px; left: 0; right: 0;
+    top: 32px; left: 0; right: 0;
     height: 52px;
     padding: 0 10px;
     z-index: 300;
@@ -1379,7 +1367,6 @@ body { overflow-x: hidden; }
     border-bottom: 1px solid var(--border2);
     box-shadow: 0 2px 16px rgba(0,0,0,.10);
   }
-  .tb-logo em { display: none; }
   .tb-logo-mark { width: 28px; height: 28px; border-radius: 7px; }
   .tb-search    { display: none; }
   .tb-right     { gap: 2px; margin-left: auto; }
@@ -1393,9 +1380,9 @@ body { overflow-x: hidden; }
   .tb-guest-actions .btn-gold { display: none; }
   .tb-guest-actions .btn-ghost { padding: 6px 12px; font-size: 12px; }
 
-  /* ── Layout offset (bayroq+utility bar+topbar = 36+52+~10px bo'shliq) ── */
+  /* ── Layout offset (utility bar+topbar = 32+52+~10px bo'shliq) ── */
   #layout {
-    padding: 98px 8px 70px;
+    padding: 94px 8px 70px;
     gap: 0;
   }
   #feed-area { max-height: none; overflow-y: visible; }
@@ -1533,7 +1520,7 @@ body { overflow-x: hidden; }
   #mobile-search-bar {
     display: none;
     position: fixed;
-    top: 88px; left: 0; right: 0;
+    top: 84px; left: 0; right: 0;
     padding: 8px 10px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
@@ -1541,7 +1528,7 @@ body { overflow-x: hidden; }
   }
   #mobile-search-bar.open { display: block; }
   /* Ochilganda kontentni pastga suramiz — aks holda birinchi postni yopib qo'yadi */
-  #mobile-search-bar.open ~ #layout { padding-top: 144px; }
+  #mobile-search-bar.open ~ #layout { padding-top: 140px; }
   #mobile-search-inp {
     width: 100%; background: var(--bg2);
     border: 1px solid var(--border2); border-radius: 22px;

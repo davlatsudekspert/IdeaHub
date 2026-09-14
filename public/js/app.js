@@ -282,7 +282,7 @@ async function openUser(param){
           <div class="prof-sub">${[u.region_name?'📍 '+esc(u.region_name):'', u.created_at?`A'zo: ${fmtDate(u.created_at)}`:''].filter(Boolean).join(' · ')}${u.online?' <span style="color:var(--grn)">● Onlayn</span>':''}</div>
           ${u.bio?`<div style="font-size:13px;color:var(--tx3);margin-top:6px">${esc(u.bio)}</div>`:''}
           ${isMe ? `<div style="display:flex;gap:8px;margin-top:10px">
-            <button class="btn btn-gold" onclick="goSec('settings');loadSettings()">${IC.cam} Sozlamalar</button><input type="file" accept="image/*" id="av-inp" style="display:none" onchange="uploadAvatar(this)">
+            <button class="btn btn-gold" onclick="goSec('settings');loadSettings()">${IC.settings} Sozlamalar</button><input type="file" accept="image/*" id="av-inp" style="display:none" onchange="uploadAvatar(this)">
           </div>` : ''}
         </div>
       </div>
